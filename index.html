@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Картонная Республика - Реалистичная погода</title>
+    <title>Картонная Республика - Симулятор Мэра</title>
     <style>
         * {
             margin: 0;
@@ -28,7 +28,6 @@
             box-shadow: 0 0 60px rgba(233, 69, 96, 0.2);
         }
 
-        /* Верхняя панель */
         .header {
             display: flex;
             justify-content: space-between;
@@ -111,7 +110,6 @@
         }
         .reset-btn:hover { background: #6a4c9e; transform: scale(1.05); }
 
-        /* Таймер и выборы */
         .election-timer {
             background: #1e1e3f;
             border-radius: 15px;
@@ -149,7 +147,6 @@
             font-size: 16px;
         }
 
-        /* Основная сетка */
         .main-grid {
             display: grid;
             grid-template-columns: 2fr 1fr;
@@ -157,7 +154,6 @@
         }
         @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
 
-        /* Левая часть */
         .city-area {
             background: #1e1e3f;
             border-radius: 25px;
@@ -194,7 +190,6 @@
         .building-item .b-type { font-weight: bold; }
         .building-item .b-status { color: #f5c842; font-size: 10px; }
 
-        /* Статистика */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -221,7 +216,6 @@
         .stat-card.good .stat-value { color: #2ecc71; }
         .stat-card.bad .stat-value { color: #e94560; }
 
-        /* Мнение жителей */
         .citizens-box {
             background: #0a0a1a;
             border-radius: 14px;
@@ -262,7 +256,6 @@
             margin-top: 8px;
         }
 
-        /* Лог событий и почта */
         .event-log {
             background: #0a0a1a;
             padding: 15px;
@@ -279,8 +272,8 @@
         .event-log .bad { color: #e94560; }
         .event-log .good { color: #2ecc71; }
         .event-log .info { color: #3498db; }
+        .event-log .warning { color: #f39c12; }
 
-        /* Правая панель */
         .control-panel {
             display: flex;
             flex-direction: column;
@@ -339,6 +332,7 @@
         .building-btn .price { color: #f5c842; font-size: 10px; }
         .building-btn .income { color: #2ecc71; font-size: 10px; }
         .building-btn .mood-effect { color: #f39c12; font-size: 10px; }
+        .building-btn .required { color: #e94560; font-size: 9px; }
 
         .action-btn {
             width: 100%;
@@ -415,7 +409,7 @@
 <div class="game-container">
     <!-- Шапка -->
     <div class="header">
-        <div class="budget" id="budgetDisplay" onclick="editBudget()">💰 Бюджет: <span id="moneyDisplay">5000</span> ₽</div>
+        <div class="budget" id="budgetDisplay">💰 Бюджет: <span id="moneyDisplay">5000</span> ₽</div>
         <div class="time-indicator">
             <div class="weather-display" id="weatherDisplay">☀️ Солнечно <span class="temp">+22°C</span></div>
             <div class="season-display" id="seasonDisplay">🌱 Весна</div>
@@ -482,12 +476,12 @@
             <div class="panel-card">
                 <h3>🔨 Строительство</h3>
                 <div class="category-tabs" id="categoryTabs">
-                    <button class="category-tab active" data-cat="all">Все</button>
-                    <button class="category-tab" data-cat="residential">🏠 Жилые</button>
-                    <button class="category-tab" data-cat="commercial">🛒 Коммерческие</button>
-                    <button class="category-tab" data-cat="industrial">🏭 Промышленные</button>
-                    <button class="category-tab" data-cat="infrastructure">🚑 Инфраструктура</button>
-                    <button class="category-tab" data-cat="decor">🌳 Декор</button>
+                    <button class="category-tab active" data-cat="all" onclick="setCategory('all')">📋 Все</button>
+                    <button class="category-tab" data-cat="residential" onclick="setCategory('residential')">🏠 Жилые</button>
+                    <button class="category-tab" data-cat="commercial" onclick="setCategory('commercial')">🛒 Коммерческие</button>
+                    <button class="category-tab" data-cat="industrial" onclick="setCategory('industrial')">🏭 Промышленные</button>
+                    <button class="category-tab" data-cat="infrastructure" onclick="setCategory('infrastructure')">🚑 Инфраструктура</button>
+                    <button class="category-tab" data-cat="decor" onclick="setCategory('decor')">🌳 Декор</button>
                 </div>
                 <div id="buildingsContainer"></div>
             </div>
@@ -516,7 +510,6 @@
         temperature: 22,
         season: 'spring',
         monthNames: ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'],
-        weatherHistory: [],
         electionYear: 0,
         electionMonth: 0,
         totalMonths: 0,
@@ -526,14 +519,11 @@
         gameOver: false,
         infinityMoney: false,
         mailQueue: [],
-        lastWeatherChange: 0,
-        weatherTimer: null,
-        electionTimer: null,
         isElectionDay: false,
-        electionResults: []
+        currentCategory: 'all'
     };
 
-    // Справочник зданий с категориями
+    // ==================== СПРАВОЧНИК ЗДАНИЙ ====================
     const BUILDINGS = {
         // Жилые
         house: { 
@@ -552,7 +542,6 @@
             name: 'Общежитие', category: 'residential', income: 15, cost: 100, mood: 0, emoji: '🏚️',
             population: 8, jobs: 0, ecology: -1, required: false 
         },
-
         // Коммерческие
         shop: { 
             name: 'Магазин', category: 'commercial', income: 50, cost: 250, mood: 1, emoji: '🛒',
@@ -578,7 +567,6 @@
             name: 'Кинотеатр', category: 'commercial', income: 35, cost: 250, mood: 4, emoji: '🎬',
             population: 0, jobs: 3, ecology: 0, required: false 
         },
-
         // Промышленные
         factory: { 
             name: 'Завод', category: 'industrial', income: 80, cost: 400, mood: -3, emoji: '🏭',
@@ -596,7 +584,6 @@
             name: 'Склад', category: 'industrial', income: 20, cost: 200, mood: 0, emoji: '📦',
             population: 0, jobs: 2, ecology: -1, required: false 
         },
-
         // Инфраструктура
         hospital: { 
             name: 'Больница', category: 'infrastructure', income: 20, cost: 350, mood: 6, emoji: '🏥',
@@ -622,7 +609,6 @@
             name: 'Библиотека', category: 'infrastructure', income: 10, cost: 180, mood: 4, emoji: '📚',
             population: 0, jobs: 2, ecology: 0, required: false 
         },
-
         // Декор
         park: { 
             name: 'Парк', category: 'decor', income: 10, cost: 100, mood: 5, emoji: '🌳',
@@ -658,15 +644,7 @@
         }
     };
 
-    const CATEGORIES = {
-        all: { label: 'Все', icon: '📋' },
-        residential: { label: 'Жилые', icon: '🏠' },
-        commercial: { label: 'Коммерческие', icon: '🛒' },
-        industrial: { label: 'Промышленные', icon: '🏭' },
-        infrastructure: { label: 'Инфраструктура', icon: '🚑' },
-        decor: { label: 'Декор', icon: '🌳' }
-    };
-
+    // ==================== ПОГОДА ====================
     const WEATHERS = {
         sunny: { emoji: '☀️', label: 'Солнечно' },
         cloudy: { emoji: '⛅', label: 'Облачно' },
@@ -678,13 +656,12 @@
     };
 
     const SEASONS = {
-        winter: { label: '❄️ Зима', months: [11, 0, 1], temps: [-10, -5, -15, -20, -5] },
-        spring: { label: '🌱 Весна', months: [2, 3, 4], temps: [5, 10, 15, 20, 10] },
-        summer: { label: '☀️ Лето', months: [5, 6, 7], temps: [22, 28, 32, 35, 25] },
-        autumn: { label: '🍂 Осень', months: [8, 9, 10], temps: [15, 10, 5, 0, 10] }
+        winter: { label: '❄️ Зима', months: [11, 0, 1] },
+        spring: { label: '🌱 Весна', months: [2, 3, 4] },
+        summer: { label: '☀️ Лето', months: [5, 6, 7] },
+        autumn: { label: '🍂 Осень', months: [8, 9, 10] }
     };
 
-    // ==================== ПОГОДНАЯ ЛОГИКА ====================
     function getSeason(month) {
         const m = month % 12;
         if (m === 11 || m === 0 || m === 1) return 'winter';
@@ -693,82 +670,107 @@
         return 'autumn';
     }
 
-    function getSeasonTemp(season) {
-        const temps = SEASONS[season].temps;
-        return temps[Math.floor(Math.random() * temps.length)];
-    }
-
     function getPossibleWeather(season) {
         switch(season) {
-            case 'winter':
-                return ['sunny', 'cloudy', 'snowy', 'foggy', 'windy'];
-            case 'spring':
-                return ['sunny', 'cloudy', 'rainy', 'foggy', 'windy'];
-            case 'summer':
-                return ['sunny', 'cloudy', 'rainy', 'storm', 'windy'];
-            case 'autumn':
-                return ['sunny', 'cloudy', 'rainy', 'foggy', 'windy', 'storm'];
-            default:
-                return ['sunny', 'cloudy'];
+            case 'winter': return ['sunny', 'cloudy', 'snowy', 'foggy', 'windy'];
+            case 'spring': return ['sunny', 'cloudy', 'rainy', 'foggy', 'windy'];
+            case 'summer': return ['sunny', 'cloudy', 'rainy', 'storm', 'windy'];
+            case 'autumn': return ['sunny', 'cloudy', 'rainy', 'foggy', 'windy', 'storm'];
+            default: return ['sunny', 'cloudy'];
         }
     }
 
     function changeWeather() {
         const season = getSeason(state.month);
         const possible = getPossibleWeather(season);
-        
-        // Не меняем резко, исключаем резкие переходы
-        let newWeather;
-        let attempts = 0;
-        do {
-            newWeather = possible[Math.floor(Math.random() * possible.length)];
-            attempts++;
-            // Если текущая погода - гроза, не меняем на солнечно (и наоборот)
-        } while (
-            (state.weather === 'storm' && newWeather === 'sunny') ||
-            (state.weather === 'sunny' && newWeather === 'storm') ||
-            (state.weather === 'snowy' && newWeather === 'sunny') ||
-            (state.weather === 'sunny' && newWeather === 'snowy') ||
-            (state.weather === 'rainy' && newWeather === 'sunny' && Math.random() > 0.3) ||
-            (state.weather === 'sunny' && newWeather === 'rainy' && Math.random() > 0.3) ||
-            (attempts < 5 && newWeather === state.weather)
-        );
-
+        let newWeather = possible[Math.floor(Math.random() * possible.length)];
         state.weather = newWeather;
-        state.temperature = getSeasonTemp(season);
-        
-        // Добавляем небольшое случайное изменение температуры
-        state.temperature += Math.floor(Math.random() * 6) - 3;
-        
+        state.temperature = Math.floor(Math.random() * 20) + 5;
+        if (season === 'winter') state.temperature = Math.floor(Math.random() * 15) - 15;
+        if (season === 'summer') state.temperature = Math.floor(Math.random() * 15) + 20;
         updateWeatherDisplay();
-        addLog(`info`, `🌤️ Погода: ${WEATHERS[state.weather].emoji} ${WEATHERS[state.weather].label}, ${state.temperature}°C`);
     }
 
     function updateWeatherDisplay() {
         const w = WEATHERS[state.weather];
         document.getElementById('weatherDisplay').innerHTML = `${w.emoji} ${w.label} <span class="temp">${state.temperature}°C</span>`;
-        
         const season = getSeason(state.month);
         document.getElementById('seasonDisplay').textContent = SEASONS[season].label;
+    }
+
+    // ==================== ОСНОВНАЯ ЛОГИКА ====================
+    function build(type) {
+        if (state.gameOver) {
+            alert('Игра окончена! Начни новую игру.');
+            return;
+        }
         
-        // Меняем фон в зависимости от погоды (эффект)
-        const container = document.querySelector('.game-container');
-        if (state.weather === 'snowy') {
-            container.style.borderColor = '#b0c4de';
-            container.style.boxShadow = '0 0 60px rgba(176, 196, 222, 0.3)';
-        } else if (state.weather === 'storm') {
-            container.style.borderColor = '#4a4a6a';
-            container.style.boxShadow = '0 0 60px rgba(74, 74, 106, 0.5)';
-        } else if (state.weather === 'sunny') {
-            container.style.borderColor = '#f5a623';
-            container.style.boxShadow = '0 0 60px rgba(245, 166, 35, 0.2)';
-        } else {
-            container.style.borderColor = '#e94560';
-            container.style.boxShadow = '0 0 60px rgba(233, 69, 96, 0.2)';
+        const building = BUILDINGS[type];
+        if (!building) {
+            addLog('bad', `❌ Здание "${type}" не найдено!`);
+            return;
+        }
+        
+        if (!state.infinityMoney && state.money < building.cost) {
+            addLog('bad', `❌ Не хватает денег для ${building.name}! (нужно ${building.cost}₽)`);
+            return;
+        }
+        
+        if (!state.infinityMoney) {
+            state.money -= building.cost;
+        }
+        
+        state.buildings.push({
+            type: type,
+            name: building.name,
+            emoji: building.emoji,
+            income: building.income,
+            mood: building.mood,
+            population: building.population || 0,
+            jobs: building.jobs || 0,
+            ecology: building.ecology || 0,
+            category: building.category
+        });
+        
+        if (building.mood > 0) state.happy += building.mood;
+        else if (building.mood < 0) state.unhappy += Math.abs(building.mood);
+        
+        addLog('good', `✅ Построен ${building.emoji} ${building.name} (${building.cost}₽)`);
+        updateDisplay();
+        renderBuildings();
+        renderBuildingsPanel(state.currentCategory);
+    }
+
+    function nextTurn() {
+        if (state.gameOver) {
+            alert('Игра окончена! Начни новую игру.');
+            return;
+        }
+        
+        let totalIncome = 0;
+        state.buildings.forEach(b => {
+            totalIncome += b.income;
+        });
+        
+        const expenses = Math.floor(totalIncome * 0.1);
+        
+        if (!state.infinityMoney) {
+            state.money += totalIncome - expenses;
+            if (state.money < 0) {
+                addLog('bad', '💸 Бюджет в минусе! Жители недовольны!');
+                state.unhappy += 2;
+            }
+        }
+        
+        updateTime();
+        updateDisplay();
+        renderBuildings();
+        
+        if (state.weather === 'storm' && Math.random() < 0.05) {
+            triggerDisaster();
         }
     }
 
-    // ==================== ВРЕМЯ И ВЫБОРЫ ====================
     function updateTime() {
         state.totalMonths++;
         state.month++;
@@ -779,31 +781,25 @@
             state.electionYear++;
         }
         
-        // Смена дня/ночи (каждые 30 секунд)
         if (state.totalMonths % 2 === 0) {
             state.dayTime = state.dayTime === 'day' ? 'night' : 'day';
         }
         
-        updateDisplay();
-        
-        // Проверка выборов (каждые 12 месяцев)
         if (state.electionMonth >= 12) {
             state.electionMonth = 0;
             holdElections();
         }
         
-        // Меняем погоду (каждые 2 месяца)
         if (state.totalMonths % 2 === 0) {
             changeWeather();
         }
         
-        // Отправляем почту (каждые 3 месяца)
         if (state.totalMonths % 3 === 0) {
             sendMail();
         }
         
-        // Обновляем таймер выборов
         updateElectionTimer();
+        updateDisplay();
     }
 
     function updateElectionTimer() {
@@ -817,20 +813,17 @@
         if (state.isElectionDay) return;
         state.isElectionDay = true;
         
-        // Расчёт рейтинга
         const total = state.happy + state.unhappy;
         let rating = 50;
         if (total > 0) {
             rating = (state.happy / total) * 100;
         }
         
-        // Бонусы за здания
         const parks = state.buildings.filter(b => b.type === 'park').length;
         const factories = state.buildings.filter(b => b.type === 'factory' || b.type === 'npz').length;
         rating += parks * 3;
         rating -= factories * 2;
         
-        // Проверка обязательных зданий
         const hasPolice = state.buildings.some(b => b.type === 'police');
         const hasHospital = state.buildings.some(b => b.type === 'hospital');
         const hasSchool = state.buildings.some(b => b.type === 'school');
@@ -853,7 +846,6 @@
             addLog('good', `🏆 ВЫБОРЫ: ${result} Премия +${prize}₽`);
         } else if (rating >= 40) {
             result = '⚠️ Остались у власти, но с предупреждением';
-            prize = 0;
             addLog('warning', `🗳️ ВЫБОРЫ: ${result} (Рейтинг: ${Math.round(rating)}%)`);
         } else {
             result = '❌ ВАС УВОЛИЛИ! Игра окончена!';
@@ -861,19 +853,12 @@
             addLog('bad', `💀 ВЫБОРЫ: ${result}`);
         }
         
-        state.electionResults.push({
-            year: state.electionYear,
-            rating: rating,
-            result: result,
-            prize: prize
-        });
-        
-        updateDisplay();
         state.isElectionDay = false;
         updateElectionTimer();
+        updateDisplay();
     }
 
-    // ==================== ПОЧТА ЖИТЕЛЕЙ ====================
+    // ==================== ПОЧТА ====================
     function sendMail() {
         const messages = [
             { type: 'good', text: 'Спасибо за новый парк! Дети очень рады! 🌳' },
@@ -901,116 +886,27 @@
         updateDisplay();
     }
 
-    // ==================== ЛОГИКА ИГРЫ ====================
-    function build(type) {
-        if (state.gameOver) {
-            alert('Игра окончена! Начни новую игру.');
-            return;
-        }
-        
-        const building = BUILDINGS[type];
-        if (!building) return;
-        
-        if (!state.infinityMoney && state.money < building.cost) {
-            addLog('bad', `❌ Не хватает денег для ${building.name}! (нужно ${building.cost}₽)`);
-            return;
-        }
-        
-        if (!state.infinityMoney) {
-            state.money -= building.cost;
-        }
-        
-        state.buildings.push({
-            type: type,
-            name: building.name,
-            emoji: building.emoji,
-            income: building.income,
-            mood: building.mood,
-            population: building.population || 0,
-            jobs: building.jobs || 0,
-            ecology: building.ecology || 0
-        });
-        
-        // Обновляем счастье
-        if (building.mood > 0) state.happy += building.mood;
-        else if (building.mood < 0) state.unhappy += Math.abs(building.mood);
-        
-        addLog('good', `✅ Построен ${building.emoji} ${building.name} (${building.cost}₽)`);
-        updateDisplay();
-        renderBuildings();
-    }
-
-    function nextTurn() {
-        if (state.gameOver) {
-            alert('Игра окончена! Начни новую игру.');
-            return;
-        }
-        
-        // Доход со всех зданий
-        let totalIncome = 0;
-        state.buildings.forEach(b => {
-            totalIncome += b.income;
-        });
-        
-        // Расходы на содержание (10% от дохода)
-        const expenses = Math.floor(totalIncome * 0.1);
-        
-        if (!state.infinityMoney) {
-            state.money += totalIncome - expenses;
-            if (state.money < 0) {
-                addLog('bad', `💸 Бюджет в минусе! Жители недовольны!`);
-                state.unhappy += 2;
-            }
-        }
-        
-        // Обновляем время
-        updateTime();
-        
-        // Проверяем наличие обязательных зданий
-        const hasPolice = state.buildings.some(b => b.type === 'police');
-        const hasHospital = state.buildings.some(b => b.type === 'hospital');
-        const hasSchool = state.buildings.some(b => b.type === 'school');
-        const hasFire = state.buildings.some(b => b.type === 'fire');
-        const hasBank = state.buildings.some(b => b.type === 'bank');
-        
-        if (!hasPolice) addLog('warning', '⚠️ В городе нет полиции! Растёт преступность!');
-        if (!hasHospital) addLog('warning', '⚠️ Нет больницы! Жители болеют!');
-        if (!hasSchool) addLog('warning', '⚠️ Нет школы! Дети не учатся!');
-        if (!hasFire) addLog('warning', '⚠️ Нет пожарной службы! Опасно!');
-        
-        updateDisplay();
-        renderBuildings();
-        
-        // Проверка на автоматическое торнадо (редко)
-        if (state.weather === 'storm' && Math.random() < 0.05) {
-            triggerDisaster();
-        }
-    }
-
+    // ==================== ТОРНАДО ====================
     function triggerDisaster() {
         if (state.gameOver) return;
-        
-        const buildings = state.buildings;
-        if (buildings.length === 0) {
+        if (state.buildings.length === 0) {
             addLog('info', '🌪️ Торнадо прошёл мимо — город пуст!');
             return;
         }
         
-        // Уничтожаем 1-3 случайных здания (кроме декора)
-        const destroyable = buildings.filter(b => b.category !== 'decor');
+        const destroyable = state.buildings.filter(b => b.category !== 'decor');
         if (destroyable.length === 0) {
-            addLog('info', '🌪️ Торнадо снёс только деревья и цветы!');
-            // Удаляем немного декора
-            const decor = buildings.filter(b => b.category === 'decor');
+            const decor = state.buildings.filter(b => b.category === 'decor');
             for (let i = 0; i < Math.min(3, decor.length); i++) {
-                const idx = buildings.indexOf(decor[i]);
+                const idx = state.buildings.indexOf(decor[i]);
                 if (idx > -1) {
-                    const removed = buildings.splice(idx, 1)[0];
+                    const removed = state.buildings.splice(idx, 1)[0];
                     addLog('bad', `💨 ${removed.emoji} ${removed.name} уничтожен торнадо!`);
                 }
             }
             updateDisplay();
             renderBuildings();
+            renderBuildingsPanel(state.currentCategory);
             return;
         }
         
@@ -1018,17 +914,15 @@
         const shuffled = [...destroyable].sort(() => Math.random() - 0.5);
         
         for (let i = 0; i < count; i++) {
-            const idx = buildings.indexOf(shuffled[i]);
+            const idx = state.buildings.indexOf(shuffled[i]);
             if (idx > -1) {
-                const removed = buildings.splice(idx, 1)[0];
+                const removed = state.buildings.splice(idx, 1)[0];
                 addLog('bad', `🌪️ ${removed.emoji} ${removed.name} уничтожен торнадо!`);
-                // Если здание давало счастье — отнимаем
                 if (removed.mood > 0) state.happy -= removed.mood;
                 else if (removed.mood < 0) state.unhappy += Math.abs(removed.mood);
             }
         }
         
-        // Нужно восстановление
         const cost = count * 200;
         if (!state.infinityMoney) {
             state.money -= cost;
@@ -1037,6 +931,7 @@
         
         updateDisplay();
         renderBuildings();
+        renderBuildingsPanel(state.currentCategory);
     }
 
     function addMoney(amount) {
@@ -1056,7 +951,6 @@
         log.innerHTML += `<div class="${type}">${emoji} [${time}] ${message}</div>`;
         log.scrollTop = log.scrollHeight;
         
-        // Ограничиваем лог
         while (log.children.length > 20) {
             log.removeChild(log.firstChild);
         }
@@ -1065,12 +959,11 @@
     // ==================== ОТОБРАЖЕНИЕ ====================
     function updateDisplay() {
         document.getElementById('moneyDisplay').textContent = state.infinityMoney ? '∞' : state.money;
-        document.getElementById('monthDisplay').textContent = `📅 ${state.monthNames[state.month % 12]} ${state.electionYear + 1} г.`;
+        document.getElementById('monthDisplay').textContent = `📅 ${state.monthNames[(state.month - 1) % 12]} ${state.electionYear + 1} г.`;
         document.getElementById('timeDisplay').textContent = state.dayTime === 'day' ? '☀️ День' : '🌙 Ночь';
         document.getElementById('timeDisplay').className = 'day-night' + (state.dayTime === 'night' ? ' night' : '');
         document.getElementById('buildingCount').textContent = state.buildings.length;
         
-        // Статистика
         const totalPop = state.buildings.reduce((sum, b) => sum + (b.population || 0), 0) + 10;
         const totalJobs = state.buildings.reduce((sum, b) => sum + (b.jobs || 0), 0);
         const ecology = Math.min(100, Math.max(0, 50 + state.buildings.reduce((sum, b) => sum + (b.ecology || 0), 0)));
@@ -1082,13 +975,11 @@
         document.getElementById('unemployment').textContent = unemployment + '%';
         document.getElementById('incomePerCapita').textContent = incomePerCapita + ' ₽';
         
-        // Мнение жителей
         const total = state.happy + state.unhappy;
         let moodPercent = 50;
         if (total > 0) {
             moodPercent = (state.happy / total) * 100;
         }
-        // Корректировка от экологии
         moodPercent += (ecology - 50) * 0.2;
         moodPercent = Math.max(0, Math.min(100, moodPercent));
         
@@ -1097,7 +988,6 @@
         document.getElementById('unhappyCount').textContent = state.unhappy;
         document.getElementById('ratingDisplay').textContent = Math.round(moodPercent) + '%';
         
-        // Иконка настроения
         let moodIcon = '😐';
         let moodText = 'Нейтрально';
         if (moodPercent >= 80) { moodIcon = '😍'; moodText = 'Восторг!'; }
@@ -1109,7 +999,6 @@
         document.getElementById('moodIcon').textContent = moodIcon;
         document.getElementById('moodText').textContent = moodText;
         
-        // Бюджет
         const budgetEl = document.getElementById('budgetDisplay');
         if (state.infinityMoney) {
             budgetEl.classList.add('infinity');
@@ -1133,24 +1022,33 @@
         ).join('');
     }
 
-    function renderBuildingsPanel(category = 'all') {
+    function renderBuildingsPanel(category) {
         const container = document.getElementById('buildingsContainer');
         let html = '';
         
         Object.entries(BUILDINGS).forEach(([key, b]) => {
             if (category !== 'all' && b.category !== category) return;
             
-            const required = b.required ? ' 🔴' : '';
+            const required = b.required ? ' 🔴обяз' : '';
+            const moodText = b.mood > 0 ? `❤️+${b.mood}` : b.mood < 0 ? `💔${b.mood}` : '';
             html += `<button class="building-btn" onclick="build('${key}')">
                 ${b.emoji} ${b.name} 
                 <span class="price">${b.cost}₽</span>
                 <span class="income">+${b.income}₽</span>
-                <span class="mood-effect">${b.mood > 0 ? '❤️+' + b.mood : b.mood < 0 ? '💔' + b.mood : ''}</span>
-                ${required ? '<span class="required">обязательное</span>' : ''}
+                <span class="mood-effect">${moodText}</span>
+                <span class="required">${required}</span>
             </button>`;
         });
         
         container.innerHTML = html || '<div style="color:#666; text-align:center; padding:10px;">Нет зданий в этой категории</div>';
+    }
+
+    // ==================== КАТЕГОРИИ ====================
+    function setCategory(cat) {
+        state.currentCategory = cat;
+        document.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
+        document.querySelector(`.category-tab[data-cat="${cat}"]`)?.classList.add('active');
+        renderBuildingsPanel(cat);
     }
 
     // ==================== НАСТРОЙКИ ====================
@@ -1168,16 +1066,6 @@
             state.money = val;
             updateDisplay();
             addLog('info', `💰 Бюджет установлен на ${val}₽`);
-        }
-    }
-
-    function editBudget() {
-        if (state.infinityMoney) return;
-        const newBudget = prompt('Введите новый бюджет:', state.money);
-        if (newBudget !== null && !isNaN(newBudget) && parseInt(newBudget) >= 0) {
-            state.money = parseInt(newBudget);
-            updateDisplay();
-            addLog('info', `💰 Бюджет изменён на ${state.money}₽`);
         }
     }
 
@@ -1199,30 +1087,19 @@
         state.rating = 50;
         state.gameOver = false;
         state.mailQueue = [];
-        state.electionResults = [];
         state.isElectionDay = false;
         
         document.getElementById('eventLog').innerHTML = '<span class="event-title">📢 Новый город создан!</span> Строй и развивайся!';
         updateDisplay();
         renderBuildings();
+        renderBuildingsPanel('all');
         updateWeatherDisplay();
         updateElectionTimer();
         addLog('good', '🏙️ Новый Картонный Город основан!');
     }
 
-    // ==================== КАТЕГОРИИ ====================
+    // ==================== ИНИЦИАЛИЗАЦИЯ ====================
     document.addEventListener('DOMContentLoaded', function() {
-        // Категории
-        document.querySelectorAll('.category-tab').forEach(tab => {
-            tab.addEventListener('click', function() {
-                document.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
-                this.classList.add('active');
-                const cat = this.dataset.cat;
-                renderBuildingsPanel(cat);
-            });
-        });
-        
-        // Инициализация
         state.money = parseInt(document.getElementById('budgetInput').value) || 5000;
         updateDisplay();
         renderBuildings();
@@ -1231,14 +1108,14 @@
         updateElectionTimer();
         changeWeather();
         
-        // Автоматическое обновление времени (каждые 3 минуты = 1 месяц)
+        // Автоматический ход каждые 3 минуты
         setInterval(() => {
             if (!state.gameOver) {
                 nextTurn();
             }
-        }, 180000); // 3 минуты
+        }, 180000);
         
-        // Обновление погоды (каждые 30 секунд для плавности)
+        // Обновление погоды каждые 30 секунд
         setInterval(() => {
             if (!state.gameOver && Math.random() < 0.3) {
                 changeWeather();
@@ -1248,8 +1125,7 @@
         addLog('good', '🎮 Игра запущена! Время идёт...');
     });
 
-    // ==================== ЧИТЫ ДЛЯ ТЕСТА ====================
-    // Ускорение времени для теста (можно убрать)
+    // Консольные команды
     window.quickTime = function() {
         for (let i = 0; i < 12; i++) {
             nextTurn();
@@ -1257,7 +1133,6 @@
         addLog('info', '⏩ Пропущено 12 месяцев');
     };
     
-    // Вызов выборов вручную
     window.forceElection = function() {
         state.electionMonth = 11;
         updateElectionTimer();
