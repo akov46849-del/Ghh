@@ -4,18 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ZING — вход по коду</title>
-    <!-- Firebase SDK -->
+    <!-- Firebase SDK (для авторизации и чата) -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Inter', system-ui, sans-serif;
             background: linear-gradient(145deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
@@ -24,19 +20,16 @@
             justify-content: center;
             align-items: center;
             padding: 20px;
-            margin: 0;
         }
         .container {
-            background: rgba(255, 255, 255, 0.06);
+            background: rgba(255,255,255,0.06);
             backdrop-filter: blur(18px);
-            -webkit-backdrop-filter: blur(18px);
             border-radius: 40px;
             padding: 40px 36px;
             max-width: 560px;
             width: 100%;
-            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            transition: all 0.3s ease;
+            box-shadow: 0 30px 60px -12px rgba(0,0,0,0.8);
+            border: 1px solid rgba(255,255,255,0.06);
         }
         .logo {
             display: flex;
@@ -56,34 +49,28 @@
             background: linear-gradient(135deg, #f093fb, #f5576c);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            letter-spacing: -0.5px;
         }
         .sub {
-            color: rgba(255, 255, 255, 0.4);
+            color: rgba(255,255,255,0.4);
             font-size: 14px;
-            font-weight: 400;
             margin-bottom: 28px;
-            letter-spacing: 0.2px;
         }
         .input-group {
             margin-bottom: 18px;
         }
         .input-group label {
             display: block;
-            color: rgba(255, 255, 255, 0.7);
+            color: rgba(255,255,255,0.7);
             font-size: 13px;
             font-weight: 500;
             margin-bottom: 6px;
-            letter-spacing: 0.3px;
         }
-        .input-group input,
-        .input-group select,
-        .input-group textarea {
+        .input-group input, .input-group select, .input-group textarea {
             width: 100%;
             padding: 14px 16px;
             border-radius: 20px;
-            border: 1.5px solid rgba(255, 255, 255, 0.12);
-            background: rgba(255, 255, 255, 0.05);
+            border: 1.5px solid rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.05);
             color: #fff;
             font-size: 15px;
             font-family: 'Inter', sans-serif;
@@ -94,41 +81,34 @@
             resize: vertical;
             min-height: 70px;
         }
-        .input-group input:focus,
-        .input-group select:focus,
-        .input-group textarea:focus {
+        .input-group input:focus, .input-group select:focus, .input-group textarea:focus {
             border-color: #f5576c;
-            background: rgba(255, 255, 255, 0.08);
-            box-shadow: 0 0 0 4px rgba(245, 87, 108, 0.15);
+            background: rgba(255,255,255,0.08);
+            box-shadow: 0 0 0 4px rgba(245,87,108,0.15);
         }
-        .input-group input::placeholder,
-        .input-group textarea::placeholder {
-            color: rgba(255, 255, 255, 0.25);
+        .input-group input::placeholder, .input-group textarea::placeholder {
+            color: rgba(255,255,255,0.25);
         }
         .input-group select {
             appearance: none;
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='white' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
             background-repeat: no-repeat;
             background-position: right 16px center;
-            color: rgba(255, 255, 255, 0.85);
+            color: rgba(255,255,255,0.85);
         }
-        .input-group select option {
-            background: #24243e;
-            color: #fff;
-        }
+        .input-group select option { background: #24243e; color: #fff; }
         .input-group .avatar-preview {
             width: 80px;
             height: 80px;
             border-radius: 50%;
-            background: rgba(255, 255, 255, 0.05);
-            border: 2px dashed rgba(255, 255, 255, 0.2);
+            background: rgba(255,255,255,0.05);
+            border: 2px dashed rgba(255,255,255,0.2);
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 32px;
-            color: rgba(255, 255, 255, 0.3);
+            color: rgba(255,255,255,0.3);
             margin-top: 8px;
-            transition: 0.3s;
             overflow: hidden;
         }
         .input-group .avatar-preview img {
@@ -153,88 +133,51 @@
             gap: 10px;
             font-family: 'Inter', sans-serif;
         }
-        .btn:hover {
-            transform: scale(1.02);
-            box-shadow: 0 8px 30px rgba(245, 87, 108, 0.4);
-        }
-        .btn:active {
-            transform: scale(0.97);
-        }
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
+        .btn:hover { transform: scale(1.02); box-shadow: 0 8px 30px rgba(245,87,108,0.4); }
+        .btn:active { transform: scale(0.97); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
         .btn-secondary {
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.12);
         }
-        .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.15);
-            box-shadow: none;
-        }
+        .btn-secondary:hover { background: rgba(255,255,255,0.15); box-shadow: none; }
         .spinner {
             width: 22px;
             height: 22px;
             border-radius: 50%;
-            border: 3px solid rgba(255, 255, 255, 0.2);
+            border: 3px solid rgba(255,255,255,0.2);
             border-top-color: #fff;
             animation: spin 0.7s linear infinite;
             display: inline-block;
         }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+        @keyframes spin { to { transform: rotate(360deg); } }
         .message {
             margin-top: 16px;
             padding: 12px 16px;
             border-radius: 16px;
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255,255,255,0.05);
             border-left: 4px solid #f5576c;
-            color: rgba(255, 255, 255, 0.9);
+            color: rgba(255,255,255,0.9);
             font-size: 14px;
             display: none;
             align-items: center;
             gap: 12px;
             animation: fadeIn 0.3s ease;
         }
-        .message.show {
-            display: flex;
-        }
-        .message.success {
-            border-left-color: #4ade80;
-        }
-        .message .icon {
-            font-size: 18px;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-6px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        .message.show { display: flex; }
+        .message.success { border-left-color: #4ade80; }
+        .message .icon { font-size: 18px; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
         .footer {
             margin-top: 24px;
             text-align: center;
-            color: rgba(255, 255, 255, 0.15);
+            color: rgba(255,255,255,0.15);
             font-size: 12px;
-            letter-spacing: 0.5px;
         }
+        #authBox, #profileBox, #chatBox { display: none; animation: fadeIn 0.4s ease; }
+        #authBox { display: block; }
 
-        /* === Блоки === */
-        #authBox,
-        #profileBox,
-        #chatBox {
-            display: none;
-            animation: fadeIn 0.4s ease;
-        }
-        #authBox {
-            display: block;
-        }
-
-        /* === Профиль === */
-        #profileBox .profile-header {
-            text-align: center;
-            margin-bottom: 24px;
-        }
+        #profileBox .profile-header { text-align: center; margin-bottom: 24px; }
         #profileBox .profile-header .avatar-big {
             width: 96px;
             height: 96px;
@@ -247,25 +190,17 @@
             font-size: 40px;
             font-weight: 700;
             color: #fff;
-            box-shadow: 0 12px 30px rgba(245, 87, 108, 0.3);
+            box-shadow: 0 12px 30px rgba(245,87,108,0.3);
         }
-        #profileBox .profile-header p {
-            color: rgba(255, 255, 255, 0.5);
-            font-size: 14px;
-        }
+        #profileBox .profile-header p { color: rgba(255,255,255,0.5); font-size: 14px; }
 
-        /* === Чат === */
         #chatBox .chat-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 16px;
         }
-        #chatBox .chat-header .user-info {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
+        #chatBox .chat-header .user-info { display: flex; align-items: center; gap: 12px; }
         #chatBox .chat-header .user-info .avatar-small {
             width: 40px;
             height: 40px;
@@ -279,21 +214,12 @@
             color: #fff;
             flex-shrink: 0;
         }
-        #chatBox .chat-header .user-info .name {
-            color: #fff;
-            font-weight: 600;
-            font-size: 16px;
-        }
-        #chatBox .chat-header .user-info .name small {
-            font-weight: 400;
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.4);
-            display: block;
-        }
+        #chatBox .chat-header .user-info .name { color: #fff; font-weight: 600; font-size: 16px; }
+        #chatBox .chat-header .user-info .name small { font-weight: 400; font-size: 12px; color: rgba(255,255,255,0.4); display: block; }
         #chatBox .chat-header .logout-btn {
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            color: rgba(255, 255, 255, 0.5);
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: rgba(255,255,255,0.5);
             padding: 8px 18px;
             border-radius: 40px;
             cursor: pointer;
@@ -301,15 +227,12 @@
             transition: 0.3s;
             font-family: 'Inter', sans-serif;
         }
-        #chatBox .chat-header .logout-btn:hover {
-            background: rgba(255, 255, 255, 0.12);
-            color: #fff;
-        }
+        #chatBox .chat-header .logout-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
 
         #messages {
             height: 320px;
             overflow-y: auto;
-            background: rgba(0, 0, 0, 0.25);
+            background: rgba(0,0,0,0.25);
             border-radius: 24px;
             padding: 16px;
             display: flex;
@@ -318,23 +241,11 @@
             margin-bottom: 16px;
             scroll-behavior: smooth;
         }
-        #messages::-webkit-scrollbar {
-            width: 4px;
-        }
-        #messages::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        #messages::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.15);
-            border-radius: 10px;
-        }
+        #messages::-webkit-scrollbar { width: 4px; }
+        #messages::-webkit-scrollbar-track { background: transparent; }
+        #messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 10px; }
 
-        #messages .msg {
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            animation: fadeIn 0.2s ease;
-        }
+        #messages .msg { display: flex; align-items: flex-start; gap: 10px; animation: fadeIn 0.2s ease; }
         #messages .msg .avatar-msg {
             width: 32px;
             height: 32px;
@@ -349,47 +260,25 @@
             flex-shrink: 0;
         }
         #messages .msg .bubble {
-            background: rgba(255, 255, 255, 0.08);
+            background: rgba(255,255,255,0.08);
             padding: 10px 14px;
             border-radius: 18px;
             max-width: 80%;
             word-wrap: break-word;
             border-bottom-left-radius: 4px;
         }
-        #messages .msg.me {
-            flex-direction: row-reverse;
-        }
+        #messages .msg.me { flex-direction: row-reverse; }
         #messages .msg.me .bubble {
             background: linear-gradient(135deg, #f093fb, #f5576c);
             color: #fff;
             border-bottom-left-radius: 18px;
             border-bottom-right-radius: 4px;
         }
-        #messages .msg .bubble .sender {
-            font-weight: 600;
-            font-size: 12px;
-            opacity: 0.6;
-            margin-bottom: 2px;
-        }
-        #messages .msg.me .bubble .sender {
-            opacity: 0.8;
-        }
-        #messages .msg .bubble .text {
-            font-size: 14px;
-            line-height: 1.4;
-        }
-        #messages .msg .bubble .time {
-            font-size: 10px;
-            opacity: 0.4;
-            margin-top: 4px;
-            text-align: right;
-        }
-        #messages .empty {
-            color: rgba(255, 255, 255, 0.2);
-            text-align: center;
-            padding: 40px 0;
-            font-size: 14px;
-        }
+        #messages .msg .bubble .sender { font-weight: 600; font-size: 12px; opacity: 0.6; margin-bottom: 2px; }
+        #messages .msg.me .bubble .sender { opacity: 0.8; }
+        #messages .msg .bubble .text { font-size: 14px; line-height: 1.4; }
+        #messages .msg .bubble .time { font-size: 10px; opacity: 0.4; margin-top: 4px; text-align: right; }
+        #messages .empty { color: rgba(255,255,255,0.2); text-align: center; padding: 40px 0; font-size: 14px; }
 
         #input-area {
             display: flex;
@@ -400,21 +289,16 @@
             flex: 1;
             padding: 12px 18px;
             border-radius: 60px;
-            border: 1.5px solid rgba(255, 255, 255, 0.08);
-            background: rgba(255, 255, 255, 0.04);
+            border: 1.5px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.04);
             color: #fff;
             font-size: 15px;
             outline: none;
             transition: 0.3s;
             font-family: 'Inter', sans-serif;
         }
-        #input-area input:focus {
-            border-color: #f5576c;
-            background: rgba(255, 255, 255, 0.08);
-        }
-        #input-area input::placeholder {
-            color: rgba(255, 255, 255, 0.25);
-        }
+        #input-area input:focus { border-color: #f5576c; background: rgba(255,255,255,0.08); }
+        #input-area input::placeholder { color: rgba(255,255,255,0.25); }
         #input-area button {
             padding: 12px 20px;
             border: none;
@@ -430,49 +314,29 @@
             gap: 8px;
             font-family: 'Inter', sans-serif;
         }
-        #input-area button:hover {
-            transform: scale(1.05);
-            box-shadow: 0 8px 24px rgba(245, 87, 108, 0.3);
-        }
-        #input-area button:active {
-            transform: scale(0.95);
-        }
+        #input-area button:hover { transform: scale(1.05); box-shadow: 0 8px 24px rgba(245,87,108,0.3); }
+        #input-area button:active { transform: scale(0.95); }
 
         @media (max-width: 480px) {
-            .container {
-                padding: 28px 20px;
-                border-radius: 28px;
-            }
-            .logo h1 {
-                font-size: 26px;
-            }
-            #messages {
-                height: 260px;
-            }
+            .container { padding: 28px 20px; border-radius: 28px; }
+            .logo h1 { font-size: 26px; }
+            #messages { height: 260px; }
         }
         input[type=number]::-webkit-inner-spin-button,
         input[type=number]::-webkit-outer-spin-button {
             -webkit-appearance: none;
             margin: 0;
         }
-        input[type=number] {
-            -moz-appearance: textfield;
-        }
-        .fade-in {
-            animation: fadeIn 0.4s ease;
-        }
-        .mt-10 {
-            margin-top: 10px;
-        }
-        #step2 {
-            display: none;
-        }
+        input[type=number] { -moz-appearance: textfield; }
+        .fade-in { animation: fadeIn 0.4s ease; }
+        .mt-10 { margin-top: 10px; }
+        #step2 { display: none; }
     </style>
 </head>
 <body>
 <div class="container" id="app">
 
-    <!-- ==================== БЛОК ВХОДА ==================== -->
+    <!-- ===== ВХОД ===== -->
     <div id="authBox">
         <div class="logo">
             <i class="fas fa-bolt"></i>
@@ -480,7 +344,6 @@
         </div>
         <p class="sub">Вход по коду на почту</p>
 
-        <!-- Шаг 1: Ввод email -->
         <div id="step1">
             <div class="input-group">
                 <label><i class="far fa-envelope"></i> Электронная почта</label>
@@ -492,7 +355,6 @@
             </button>
         </div>
 
-        <!-- Шаг 2: Ввод кода -->
         <div id="step2">
             <div class="input-group">
                 <label><i class="fas fa-key"></i> Введите код из письма</label>
@@ -513,7 +375,7 @@
         <div class="footer">Безопасно и быстро</div>
     </div>
 
-    <!-- ==================== БЛОК ПРОФИЛЯ ==================== -->
+    <!-- ===== ПРОФИЛЬ ===== -->
     <div id="profileBox">
         <div class="profile-header">
             <div class="avatar-big" id="profileAvatar">👤</div>
@@ -557,7 +419,7 @@
         </div>
     </div>
 
-    <!-- ==================== БЛОК ЧАТА ==================== -->
+    <!-- ===== ЧАТ ===== -->
     <div id="chatBox">
         <div class="chat-header">
             <div class="user-info">
@@ -584,7 +446,7 @@
 
 <script>
     // ============================================================
-    // КОНФИГ FIREBASE (ВАШ)
+    // 1. КОНФИГ FIREBASE (ВАШ)
     // ============================================================
     const firebaseConfig = {
         apiKey: "AIzaSyBjJ0U5hcGDmxrWKKa0RvTK3d9q5FvgHIk",
@@ -600,13 +462,12 @@
     const db = firebase.database();
 
     // ============================================================
-    // DOM-ссылки
+    // 2. DOM-ЭЛЕМЕНТЫ
     // ============================================================
     const authBox = document.getElementById('authBox');
     const profileBox = document.getElementById('profileBox');
     const chatBox = document.getElementById('chatBox');
 
-    // Вход
     const emailInput = document.getElementById('emailInput');
     const sendCodeBtn = document.getElementById('sendCodeBtn');
     const btnText = document.getElementById('btnText');
@@ -621,7 +482,6 @@
     const messageBox = document.getElementById('messageBox');
     const messageText = document.getElementById('messageText');
 
-    // Профиль
     const firstName = document.getElementById('firstName');
     const lastName = document.getElementById('lastName');
     const gender = document.getElementById('gender');
@@ -633,7 +493,6 @@
     const profileMessage = document.getElementById('profileMessage');
     const profileMessageText = document.getElementById('profileMessageText');
 
-    // Чат
     const chatAvatar = document.getElementById('chatAvatar');
     const chatUserName = document.getElementById('chatUserName');
     const messagesDiv = document.getElementById('messages');
@@ -645,11 +504,11 @@
     let currentUserProfile = null;
     let currentEmail = '';
 
-    // ============================================================
-    // 1. ВХОД ПО КОДУ
-    // ============================================================
+    const FIREBASE_DB_URL = 'https://zing-4a547-default-rtdb.europe-west1.firebasedatabase.app';
 
-    // --- Отправка кода ---
+    // ============================================================
+    // 3. ОТПРАВКА КОДА (ЧЕРЕЗ REST API)
+    // ============================================================
     sendCodeBtn.addEventListener('click', () => {
         const email = emailInput.value.trim();
         if (!email || !email.includes('@')) {
@@ -664,12 +523,23 @@
         spinner.style.display = 'inline-block';
         messageBox.classList.remove('show');
 
-        const queueRef = db.ref('emailQueue').push();
-        queueRef.set({
+        const url = `${FIREBASE_DB_URL}/emailQueue.json`;
+        const data = {
             email: email,
             status: 'pending',
-            timestamp: firebase.database.ServerValue.TIMESTAMP
-        }).then(() => {
+            timestamp: Date.now()
+        };
+
+        fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            return response.json();
+        })
+        .then(() => {
             btnText.textContent = 'Отправлено! ✅';
             spinner.style.display = 'none';
             sendCodeBtn.disabled = false;
@@ -679,15 +549,18 @@
             setTimeout(() => {
                 btnText.textContent = 'Отправить код';
             }, 3000);
-        }).catch((error) => {
+        })
+        .catch((err) => {
             btnText.textContent = 'Отправить код';
             spinner.style.display = 'none';
             sendCodeBtn.disabled = false;
-            showMessage('Ошибка: ' + error.message, false);
+            showMessage('Ошибка: ' + err.message, false);
         });
     });
 
-    // --- Проверка кода ---
+    // ============================================================
+    // 4. ПРОВЕРКА КОДА (ЧЕРЕЗ REST API)
+    // ============================================================
     verifyCodeBtn.addEventListener('click', () => {
         const code = codeInput.value.trim();
         if (!code || code.length !== 6) {
@@ -696,9 +569,14 @@
         }
 
         const emailKey = currentEmail.replace(/\./g, '_');
-        const codeRef = db.ref('codes/' + emailKey);
-        codeRef.once('value').then(snapshot => {
-            const data = snapshot.val();
+        const url = `${FIREBASE_DB_URL}/codes/${emailKey}.json`;
+
+        fetch(url)
+        .then(response => {
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            return response.json();
+        })
+        .then(data => {
             if (!data) {
                 showCodeMessage('Код не найден. Запросите новый.', false);
                 return;
@@ -715,60 +593,60 @@
             }
 
             if (storedCode === code) {
-                // Код верен – теперь нужно создать пользователя в Firebase Auth
-                // Если пользователь уже существует, можно войти по email+password
-                // Для простоты создаём нового пользователя с временным паролем
-                // или используем signInWithCustomToken. Но мы используем signInWithEmailAndPassword
-                // с временным паролем, который генерируем.
-                // Но лучший способ – использовать кастомный токен.
-                // Я реализую вход через создание пользователя с паролем.
-                // В реальном проекте лучше использовать кастомные токены.
                 showCodeMessage('✅ Код верен! Вход выполнен.', true);
-                codeRef.remove();
-
-                // Создаём или входим
+                // Удаляем код
+                fetch(url, { method: 'DELETE' }).catch(() => {});
+                // Вход через Firebase Auth
                 const tempPassword = Math.random().toString(36).slice(-8);
                 auth.signInWithEmailAndPassword(currentEmail, tempPassword).catch(() => {
-                    // Если пользователя нет – создаём
                     auth.createUserWithEmailAndPassword(currentEmail, tempPassword)
-                        .then(() => {
-                            // После создания входим
-                            return auth.signInWithEmailAndPassword(currentEmail, tempPassword);
-                        })
-                        .catch(err => {
-                            showCodeMessage('Ошибка: ' + err.message, false);
-                        });
+                        .then(() => auth.signInWithEmailAndPassword(currentEmail, tempPassword))
+                        .catch(err => showCodeMessage('Ошибка: ' + err.message, false));
                 });
             } else {
                 showCodeMessage('Неверный код. Попробуйте снова.', false);
             }
-        }).catch(error => {
-            showCodeMessage('Ошибка: ' + error.message, false);
+        })
+        .catch(err => {
+            showCodeMessage('Ошибка: ' + err.message, false);
         });
     });
 
-    // --- Повторная отправка ---
+    // ============================================================
+    // 5. ПОВТОРНАЯ ОТПРАВКА (REST)
+    // ============================================================
     resendCodeBtn.addEventListener('click', () => {
         const emailKey = currentEmail.replace(/\./g, '_');
-        db.ref('codes/' + emailKey).remove();
+        fetch(`${FIREBASE_DB_URL}/codes/${emailKey}.json`, { method: 'DELETE' }).catch(() => {});
 
-        const queueRef = db.ref('emailQueue').push();
-        queueRef.set({
+        const url = `${FIREBASE_DB_URL}/emailQueue.json`;
+        const data = {
             email: currentEmail,
             status: 'pending',
-            timestamp: firebase.database.ServerValue.TIMESTAMP
-        }).then(() => {
+            timestamp: Date.now()
+        };
+
+        fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            return response.json();
+        })
+        .then(() => {
             showCodeMessage('Новый код отправлен!', true);
             codeInput.value = '';
-        }).catch(error => {
-            showCodeMessage('Ошибка: ' + error.message, false);
+        })
+        .catch(err => {
+            showCodeMessage('Ошибка: ' + err.message, false);
         });
     });
 
     // ============================================================
-    // 2. ПРОФИЛЬ
+    // 6. ПРОФИЛЬ (без изменений)
     // ============================================================
-
     function showProfileForm() {
         authBox.style.display = 'none';
         profileBox.style.display = 'block';
@@ -819,9 +697,7 @@
                 showProfileMessage('Профиль успешно сохранён! ✅', true);
                 saveProfileBtn.innerHTML = '<i class="fas fa-check"></i> Сохранить профиль';
                 saveProfileBtn.disabled = false;
-                setTimeout(() => {
-                    showChat();
-                }, 800);
+                setTimeout(() => showChat(), 800);
             })
             .catch((err) => {
                 showProfileMessage('Ошибка: ' + err.message, false);
@@ -841,15 +717,12 @@
             profileMessage.querySelector('.icon').textContent = '⚠️';
         }
         profileMessageText.textContent = text;
-        setTimeout(() => {
-            profileMessage.style.display = 'none';
-        }, 4000);
+        setTimeout(() => { profileMessage.style.display = 'none'; }, 4000);
     }
 
     // ============================================================
-    // 3. ЧАТ
+    // 7. ЧАТ
     // ============================================================
-
     function showChat() {
         authBox.style.display = 'none';
         profileBox.style.display = 'none';
@@ -953,9 +826,8 @@
     });
 
     // ============================================================
-    // 4. ВЫХОД
+    // 8. ВЫХОД
     // ============================================================
-
     function logout() {
         auth.signOut().then(() => {
             currentUser = null;
@@ -967,7 +839,6 @@
             const messagesRef = db.ref('messages');
             messagesRef.off();
             emailInput.value = '';
-            // Очищаем профиль
             firstName.value = '';
             lastName.value = '';
             gender.value = 'Секрет';
@@ -976,7 +847,6 @@
             avatarPreview.innerHTML = `<i class="fas fa-user"></i>`;
             profileAvatar.innerHTML = '👤';
             profileMessage.style.display = 'none';
-            // Возвращаем шаг 1
             step1.style.display = 'block';
             step2.style.display = 'none';
             codeInput.value = '';
@@ -986,13 +856,11 @@
     logoutBtn.addEventListener('click', logout);
 
     // ============================================================
-    // 5. СОСТОЯНИЕ АВТОРИЗАЦИИ
+    // 9. СОСТОЯНИЕ АВТОРИЗАЦИИ
     // ============================================================
-
     auth.onAuthStateChanged((user) => {
         if (user) {
             currentUser = user;
-            // Проверяем профиль
             db.ref('users/' + user.uid).once('value')
                 .then((snapshot) => {
                     const data = snapshot.val();
@@ -1021,9 +889,8 @@
     });
 
     // ============================================================
-    // 6. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+    // 10. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
     // ============================================================
-
     function showMessage(text, isSuccess = true) {
         messageBox.className = 'message show';
         if (isSuccess) {
