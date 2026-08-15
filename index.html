@@ -3,17 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZING — чат с профилем</title>
+    <title>ZING — вход по коду</title>
     <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js">
-    </script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js">
-    </script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js">
-    </script>
-    <!-- Font Awesome для иконок -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <!-- Google Font -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * {
@@ -21,7 +16,6 @@
             padding: 0;
             box-sizing: border-box;
         }
-
         body {
             font-family: 'Inter', system-ui, sans-serif;
             background: linear-gradient(145deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
@@ -32,7 +26,6 @@
             padding: 20px;
             margin: 0;
         }
-
         .container {
             background: rgba(255, 255, 255, 0.06);
             backdrop-filter: blur(18px);
@@ -45,8 +38,6 @@
             border: 1px solid rgba(255, 255, 255, 0.06);
             transition: all 0.3s ease;
         }
-
-        /* === Логотип === */
         .logo {
             display: flex;
             align-items: center;
@@ -74,8 +65,6 @@
             margin-bottom: 28px;
             letter-spacing: 0.2px;
         }
-
-        /* === Общие элементы === */
         .input-group {
             margin-bottom: 18px;
         }
@@ -147,7 +136,6 @@
             height: 100%;
             object-fit: cover;
         }
-
         .btn {
             width: 100%;
             padding: 14px;
@@ -185,7 +173,6 @@
             background: rgba(255, 255, 255, 0.15);
             box-shadow: none;
         }
-
         .spinner {
             width: 22px;
             height: 22px;
@@ -196,11 +183,8 @@
             display: inline-block;
         }
         @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
+            to { transform: rotate(360deg); }
         }
-
         .message {
             margin-top: 16px;
             padding: 12px 16px;
@@ -224,16 +208,9 @@
             font-size: 18px;
         }
         @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-6px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(-6px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-
         .footer {
             margin-top: 24px;
             text-align: center;
@@ -461,7 +438,6 @@
             transform: scale(0.95);
         }
 
-        /* === Адаптив === */
         @media (max-width: 480px) {
             .container {
                 padding: 28px 20px;
@@ -474,8 +450,6 @@
                 height: 260px;
             }
         }
-
-        /* Скрыть стрелочки у input type number */
         input[type=number]::-webkit-inner-spin-button,
         input[type=number]::-webkit-outer-spin-button {
             -webkit-appearance: none;
@@ -484,532 +458,601 @@
         input[type=number] {
             -moz-appearance: textfield;
         }
-
-        /* Анимация появления */
         .fade-in {
             animation: fadeIn 0.4s ease;
+        }
+        .mt-10 {
+            margin-top: 10px;
+        }
+        #step2 {
+            display: none;
         }
     </style>
 </head>
 <body>
+<div class="container" id="app">
 
-    <div class="container" id="app">
+    <!-- ==================== БЛОК ВХОДА ==================== -->
+    <div id="authBox">
+        <div class="logo">
+            <i class="fas fa-bolt"></i>
+            <h1>ZING</h1>
+        </div>
+        <p class="sub">Вход по коду на почту</p>
 
-        <!-- ==================== БЛОК ВХОДА ==================== -->
-        <div id="authBox">
-            <div class="logo">
-                <i class="fas fa-bolt"></i>
-                <h1>ZING</h1>
-            </div>
-            <p class="sub">Мгновенный вход по ссылке</p>
-
+        <!-- Шаг 1: Ввод email -->
+        <div id="step1">
             <div class="input-group">
-                <label><i class="far fa-envelope" style="margin-right: 6px;"></i>Электронная почта</label>
-                <input type="email" id="emailInput" placeholder="hello@example.com" autocomplete="email">
+                <label><i class="far fa-envelope"></i> Электронная почта</label>
+                <input type="email" id="emailInput" placeholder="hello@example.com">
             </div>
-
-            <button class="btn" id="sendLinkBtn">
-                <span id="btnText">Отправить ссылку</span>
+            <button class="btn" id="sendCodeBtn">
+                <span id="btnText">Отправить код</span>
                 <div class="spinner" id="spinner" style="display:none;"></div>
             </button>
-
-            <div class="message" id="messageBox">
-                <span class="icon">✉️</span>
-                <span id="messageText">Проверьте почту, мы отправили ссылку для входа.</span>
-            </div>
-            <div class="footer">Безопасно и быстро</div>
         </div>
 
-        <!-- ==================== БЛОК ЗАПОЛНЕНИЯ ПРОФИЛЯ ==================== -->
-        <div id="profileBox">
-            <div class="profile-header">
-                <div class="avatar-big" id="profileAvatar">👤</div>
-                <p>Заполните профиль, чтобы продолжить</p>
-            </div>
-
+        <!-- Шаг 2: Ввод кода -->
+        <div id="step2">
             <div class="input-group">
-                <label><i class="fas fa-user" style="margin-right: 6px;"></i>Имя <span style="color:#f5576c;">*</span></label>
-                <input type="text" id="firstName" placeholder="Ваше имя">
+                <label><i class="fas fa-key"></i> Введите код из письма</label>
+                <input type="text" id="codeInput" placeholder="123456" maxlength="6">
             </div>
-
-            <div class="input-group">
-                <label><i class="fas fa-user-tag" style="margin-right: 6px;"></i>Фамилия <span style="color:rgba(255,255,255,0.3);">(необязательно)</span></label>
-                <input type="text" id="lastName" placeholder="Фамилия">
-            </div>
-
-            <div class="input-group">
-                <label><i class="fas fa-venus-mars" style="margin-right: 6px;"></i>Пол</label>
-                <select id="gender">
-                    <option value="Секрет">🔮 Секрет</option>
-                    <option value="Мужской">👨 Мужской</option>
-                    <option value="Женский">👩 Женский</option>
-                </select>
-            </div>
-
-            <div class="input-group">
-                <label><i class="fas fa-pen" style="margin-right: 6px;"></i>О себе <span style="color:rgba(255,255,255,0.3);">(необязательно)</span></label>
-                <textarea id="bio" placeholder="Расскажите о себе..." rows="2"></textarea>
-            </div>
-
-            <div class="input-group">
-                <label><i class="fas fa-image" style="margin-right: 6px;"></i>Ссылка на аватар <span style="color:rgba(255,255,255,0.3);">(необязательно)</span></label>
-                <input type="text" id="avatarUrl" placeholder="https://example.com/avatar.jpg">
-                <div class="avatar-preview" id="avatarPreview">
-                    <i class="fas fa-user"></i>
-                </div>
-            </div>
-
-            <button class="btn" id="saveProfileBtn">
-                <i class="fas fa-check"></i> Сохранить профиль
-            </button>
-            <div class="message" id="profileMessage" style="display:none;">
-                <span class="icon">✅</span>
-                <span id="profileMessageText">Профиль сохранён!</span>
+            <button class="btn" id="verifyCodeBtn">Войти</button>
+            <button class="btn btn-secondary mt-10" id="resendCodeBtn">Отправить повторно</button>
+            <div id="codeMessage" class="message" style="display:none;">
+                <span class="icon">⚠️</span>
+                <span id="codeMessageText"></span>
             </div>
         </div>
 
-        <!-- ==================== БЛОК ЧАТА ==================== -->
-        <div id="chatBox">
-            <div class="chat-header">
-                <div class="user-info">
-                    <div class="avatar-small" id="chatAvatar">Z</div>
-                    <div class="name" id="chatUserName">
-                        Пользователь
-                        <small id="chatUserStatus">онлайн</small>
-                    </div>
-                </div>
-                <button class="logout-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Выйти</button>
-            </div>
-
-            <div id="messages">
-                <div class="empty">Сообщений пока нет</div>
-            </div>
-
-            <div id="input-area">
-                <input type="text" id="messageInput" placeholder="Напишите сообщение..." maxlength="1000">
-                <button id="sendBtn"><i class="fas fa-paper-plane"></i></button>
-            </div>
+        <div class="message" id="messageBox">
+            <span class="icon">✉️</span>
+            <span id="messageText">Проверьте почту, мы отправили код.</span>
         </div>
-
+        <div class="footer">Безопасно и быстро</div>
     </div>
 
-    <script>
-        // ============================================================
-        //  КОНФИГ FIREBASE (ваш)
-        // ============================================================
-        const firebaseConfig = {
-            apiKey: "AIzaSyBjJ0U5hcGDmxrWKKa0RvTK3d9q5FvgHIk",
-            authDomain: "zing-4a547.firebaseapp.com",
-            projectId: "zing-4a547",
-            storageBucket: "zing-4a547.firebasestorage.app",
-            messagingSenderId: "1030163494482",
-            appId: "1:1030163494482:web:ede622e8b1f6859714518b"
-        };
+    <!-- ==================== БЛОК ПРОФИЛЯ ==================== -->
+    <div id="profileBox">
+        <div class="profile-header">
+            <div class="avatar-big" id="profileAvatar">👤</div>
+            <p>Заполните профиль, чтобы продолжить</p>
+        </div>
 
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.database();
+        <div class="input-group">
+            <label><i class="fas fa-user"></i> Имя <span style="color:#f5576c;">*</span></label>
+            <input type="text" id="firstName" placeholder="Ваше имя">
+        </div>
+        <div class="input-group">
+            <label><i class="fas fa-user-tag"></i> Фамилия <span style="color:rgba(255,255,255,0.3);">(необязательно)</span></label>
+            <input type="text" id="lastName" placeholder="Фамилия">
+        </div>
+        <div class="input-group">
+            <label><i class="fas fa-venus-mars"></i> Пол</label>
+            <select id="gender">
+                <option value="Секрет">🔮 Секрет</option>
+                <option value="Мужской">👨 Мужской</option>
+                <option value="Женский">👩 Женский</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <label><i class="fas fa-pen"></i> О себе <span style="color:rgba(255,255,255,0.3);">(необязательно)</span></label>
+            <textarea id="bio" placeholder="Расскажите о себе..." rows="2"></textarea>
+        </div>
+        <div class="input-group">
+            <label><i class="fas fa-image"></i> Ссылка на аватар <span style="color:rgba(255,255,255,0.3);">(необязательно)</span></label>
+            <input type="text" id="avatarUrl" placeholder="https://example.com/avatar.jpg">
+            <div class="avatar-preview" id="avatarPreview">
+                <i class="fas fa-user"></i>
+            </div>
+        </div>
 
-        // ============================================================
-        //  DOM-ссылки
-        // ============================================================
-        const authBox = document.getElementById('authBox');
-        const profileBox = document.getElementById('profileBox');
-        const chatBox = document.getElementById('chatBox');
+        <button class="btn" id="saveProfileBtn">
+            <i class="fas fa-check"></i> Сохранить профиль
+        </button>
+        <div class="message" id="profileMessage" style="display:none;">
+            <span class="icon">✅</span>
+            <span id="profileMessageText">Профиль сохранён!</span>
+        </div>
+    </div>
 
-        const emailInput = document.getElementById('emailInput');
-        const sendLinkBtn = document.getElementById('sendLinkBtn');
-        const btnText = document.getElementById('btnText');
-        const spinner = document.getElementById('spinner');
-        const messageBox = document.getElementById('messageBox');
-        const messageText = document.getElementById('messageText');
+    <!-- ==================== БЛОК ЧАТА ==================== -->
+    <div id="chatBox">
+        <div class="chat-header">
+            <div class="user-info">
+                <div class="avatar-small" id="chatAvatar">Z</div>
+                <div class="name" id="chatUserName">
+                    Пользователь
+                    <small>онлайн</small>
+                </div>
+            </div>
+            <button class="logout-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Выйти</button>
+        </div>
 
-        const firstName = document.getElementById('firstName');
-        const lastName = document.getElementById('lastName');
-        const gender = document.getElementById('gender');
-        const bio = document.getElementById('bio');
-        const avatarUrl = document.getElementById('avatarUrl');
-        const avatarPreview = document.getElementById('avatarPreview');
-        const profileAvatar = document.getElementById('profileAvatar');
-        const saveProfileBtn = document.getElementById('saveProfileBtn');
-        const profileMessage = document.getElementById('profileMessage');
-        const profileMessageText = document.getElementById('profileMessageText');
+        <div id="messages">
+            <div class="empty">Сообщений пока нет</div>
+        </div>
 
-        const chatAvatar = document.getElementById('chatAvatar');
-        const chatUserName = document.getElementById('chatUserName');
-        const chatUserStatus = document.getElementById('chatUserStatus');
-        const messagesDiv = document.getElementById('messages');
-        const messageInput = document.getElementById('messageInput');
-        const sendBtn = document.getElementById('sendBtn');
-        const logoutBtn = document.getElementById('logoutBtn');
+        <div id="input-area">
+            <input type="text" id="messageInput" placeholder="Напишите сообщение..." maxlength="1000">
+            <button id="sendBtn"><i class="fas fa-paper-plane"></i></button>
+        </div>
+    </div>
 
-        let currentUser = null;
-        let currentUserProfile = null;
-        const baseUrl = window.location.origin + window.location.pathname.split('?')[0];
+</div>
 
-        // ============================================================
-        //  Обработка входа по ссылке
-        // ============================================================
-        if (window.location.search.includes('mode=signIn')) {
-            const link = window.location.href;
-            const email = localStorage.getItem('emailForSignIn');
-            if (email && auth.isSignInWithEmailLink(link)) {
-                auth.signInWithEmailLink(email, link)
-                    .then((result) => {
-                        localStorage.removeItem('emailForSignIn');
-                        currentUser = result.user;
-                        window.history.replaceState({}, document.title, baseUrl);
-                        checkProfile();
-                    })
-                    .catch((error) => {
-                        showMessage('Ошибка: ' + error.message, false);
-                    });
-            } else {
-                showMessage('Ссылка недействительна или истекла.', false);
-            }
+<script>
+    // ============================================================
+    // КОНФИГ FIREBASE (ВАШ)
+    // ============================================================
+    const firebaseConfig = {
+        apiKey: "AIzaSyBjJ0U5hcGDmxrWKKa0RvTK3d9q5FvgHIk",
+        authDomain: "zing-4a547.firebaseapp.com",
+        projectId: "zing-4a547",
+        storageBucket: "zing-4a547.firebasestorage.app",
+        messagingSenderId: "1030163494482",
+        appId: "1:1030163494482:web:ede622e8b1f6859714518b"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+
+    // ============================================================
+    // DOM-ссылки
+    // ============================================================
+    const authBox = document.getElementById('authBox');
+    const profileBox = document.getElementById('profileBox');
+    const chatBox = document.getElementById('chatBox');
+
+    // Вход
+    const emailInput = document.getElementById('emailInput');
+    const sendCodeBtn = document.getElementById('sendCodeBtn');
+    const btnText = document.getElementById('btnText');
+    const spinner = document.getElementById('spinner');
+    const step1 = document.getElementById('step1');
+    const step2 = document.getElementById('step2');
+    const codeInput = document.getElementById('codeInput');
+    const verifyCodeBtn = document.getElementById('verifyCodeBtn');
+    const resendCodeBtn = document.getElementById('resendCodeBtn');
+    const codeMessage = document.getElementById('codeMessage');
+    const codeMessageText = document.getElementById('codeMessageText');
+    const messageBox = document.getElementById('messageBox');
+    const messageText = document.getElementById('messageText');
+
+    // Профиль
+    const firstName = document.getElementById('firstName');
+    const lastName = document.getElementById('lastName');
+    const gender = document.getElementById('gender');
+    const bio = document.getElementById('bio');
+    const avatarUrl = document.getElementById('avatarUrl');
+    const avatarPreview = document.getElementById('avatarPreview');
+    const profileAvatar = document.getElementById('profileAvatar');
+    const saveProfileBtn = document.getElementById('saveProfileBtn');
+    const profileMessage = document.getElementById('profileMessage');
+    const profileMessageText = document.getElementById('profileMessageText');
+
+    // Чат
+    const chatAvatar = document.getElementById('chatAvatar');
+    const chatUserName = document.getElementById('chatUserName');
+    const messagesDiv = document.getElementById('messages');
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    let currentUser = null;
+    let currentUserProfile = null;
+    let currentEmail = '';
+
+    // ============================================================
+    // 1. ВХОД ПО КОДУ
+    // ============================================================
+
+    // --- Отправка кода ---
+    sendCodeBtn.addEventListener('click', () => {
+        const email = emailInput.value.trim();
+        if (!email || !email.includes('@')) {
+            showMessage('Введите корректный email.', false);
+            return;
         }
 
-        // ============================================================
-        //  Отправка ссылки
-        // ============================================================
-        sendLinkBtn.addEventListener('click', () => {
-            const email = emailInput.value.trim();
-            if (!email || !email.includes('@')) {
-                showMessage('Введите корректный email.', false);
+        currentEmail = email;
+
+        sendCodeBtn.disabled = true;
+        btnText.textContent = 'Отправка...';
+        spinner.style.display = 'inline-block';
+        messageBox.classList.remove('show');
+
+        const queueRef = db.ref('emailQueue').push();
+        queueRef.set({
+            email: email,
+            status: 'pending',
+            timestamp: firebase.database.ServerValue.TIMESTAMP
+        }).then(() => {
+            btnText.textContent = 'Отправлено! ✅';
+            spinner.style.display = 'none';
+            sendCodeBtn.disabled = false;
+            showMessage('Код отправлен на вашу почту! Проверьте ящик.', true);
+            step1.style.display = 'none';
+            step2.style.display = 'block';
+            setTimeout(() => {
+                btnText.textContent = 'Отправить код';
+            }, 3000);
+        }).catch((error) => {
+            btnText.textContent = 'Отправить код';
+            spinner.style.display = 'none';
+            sendCodeBtn.disabled = false;
+            showMessage('Ошибка: ' + error.message, false);
+        });
+    });
+
+    // --- Проверка кода ---
+    verifyCodeBtn.addEventListener('click', () => {
+        const code = codeInput.value.trim();
+        if (!code || code.length !== 6) {
+            showCodeMessage('Введите 6-значный код.', false);
+            return;
+        }
+
+        const emailKey = currentEmail.replace(/\./g, '_');
+        const codeRef = db.ref('codes/' + emailKey);
+        codeRef.once('value').then(snapshot => {
+            const data = snapshot.val();
+            if (!data) {
+                showCodeMessage('Код не найден. Запросите новый.', false);
                 return;
             }
 
-            localStorage.setItem('emailForSignIn', email);
+            const storedCode = data.code;
+            const createdAt = data.createdAt;
+            const now = Date.now();
+            const tenMinutes = 10 * 60 * 1000;
 
-            sendLinkBtn.disabled = true;
-            btnText.textContent = 'Отправка...';
-            spinner.style.display = 'inline-block';
-            messageBox.classList.remove('show');
+            if (now - createdAt > tenMinutes) {
+                showCodeMessage('Код истёк. Запросите новый.', false);
+                return;
+            }
 
-            setTimeout(() => {
-                const actionCodeSettings = {
-                    url: baseUrl,
-                    handleCodeInApp: true
-                };
+            if (storedCode === code) {
+                // Код верен – теперь нужно создать пользователя в Firebase Auth
+                // Если пользователь уже существует, можно войти по email+password
+                // Для простоты создаём нового пользователя с временным паролем
+                // или используем signInWithCustomToken. Но мы используем signInWithEmailAndPassword
+                // с временным паролем, который генерируем.
+                // Но лучший способ – использовать кастомный токен.
+                // Я реализую вход через создание пользователя с паролем.
+                // В реальном проекте лучше использовать кастомные токены.
+                showCodeMessage('✅ Код верен! Вход выполнен.', true);
+                codeRef.remove();
 
-                auth.sendSignInLinkToEmail(email, actionCodeSettings)
-                    .then(() => {
-                        btnText.textContent = 'Отправлено! ✅';
-                        spinner.style.display = 'none';
-                        sendLinkBtn.disabled = false;
-                        showMessage('✉️ Ссылка отправлена на вашу почту. Перейдите по ней, чтобы войти.', true);
-                        setTimeout(() => {
-                            btnText.textContent = 'Отправить ссылку';
-                        }, 3000);
-                    })
-                    .catch((error) => {
-                        btnText.textContent = 'Отправить ссылку';
-                        spinner.style.display = 'none';
-                        sendLinkBtn.disabled = false;
-                        showMessage('Ошибка: ' + error.message, false);
-                    });
-            }, 2000);
+                // Создаём или входим
+                const tempPassword = Math.random().toString(36).slice(-8);
+                auth.signInWithEmailAndPassword(currentEmail, tempPassword).catch(() => {
+                    // Если пользователя нет – создаём
+                    auth.createUserWithEmailAndPassword(currentEmail, tempPassword)
+                        .then(() => {
+                            // После создания входим
+                            return auth.signInWithEmailAndPassword(currentEmail, tempPassword);
+                        })
+                        .catch(err => {
+                            showCodeMessage('Ошибка: ' + err.message, false);
+                        });
+                });
+            } else {
+                showCodeMessage('Неверный код. Попробуйте снова.', false);
+            }
+        }).catch(error => {
+            showCodeMessage('Ошибка: ' + error.message, false);
+        });
+    });
+
+    // --- Повторная отправка ---
+    resendCodeBtn.addEventListener('click', () => {
+        const emailKey = currentEmail.replace(/\./g, '_');
+        db.ref('codes/' + emailKey).remove();
+
+        const queueRef = db.ref('emailQueue').push();
+        queueRef.set({
+            email: currentEmail,
+            status: 'pending',
+            timestamp: firebase.database.ServerValue.TIMESTAMP
+        }).then(() => {
+            showCodeMessage('Новый код отправлен!', true);
+            codeInput.value = '';
+        }).catch(error => {
+            showCodeMessage('Ошибка: ' + error.message, false);
+        });
+    });
+
+    // ============================================================
+    // 2. ПРОФИЛЬ
+    // ============================================================
+
+    function showProfileForm() {
+        authBox.style.display = 'none';
+        profileBox.style.display = 'block';
+        chatBox.style.display = 'none';
+        if (currentUser && currentUser.email) {
+            const name = currentUser.email.split('@')[0];
+            firstName.value = name;
+        }
+        avatarUrl.addEventListener('input', updateAvatarPreview);
+        updateAvatarPreview();
+    }
+
+    function updateAvatarPreview() {
+        const url = avatarUrl.value.trim();
+        if (url) {
+            avatarPreview.innerHTML = `<img src="${url}" alt="avatar">`;
+            profileAvatar.innerHTML = `<img src="${url}" alt="avatar" style="width:100%;height:100%;object-fit:cover;">`;
+        } else {
+            avatarPreview.innerHTML = `<i class="fas fa-user"></i>`;
+            profileAvatar.innerHTML = '👤';
+        }
+    }
+
+    saveProfileBtn.addEventListener('click', () => {
+        const name = firstName.value.trim();
+        if (!name) {
+            showProfileMessage('Имя обязательно для заполнения', false);
+            return;
+        }
+
+        const profile = {
+            firstName: name,
+            lastName: lastName.value.trim() || '',
+            gender: gender.value || 'Секрет',
+            bio: bio.value.trim() || '',
+            avatar: avatarUrl.value.trim() || '',
+            email: currentUser.email,
+            createdAt: firebase.database.ServerValue.TIMESTAMP,
+            updatedAt: firebase.database.ServerValue.TIMESTAMP
+        };
+
+        saveProfileBtn.disabled = true;
+        saveProfileBtn.innerHTML = '<div class="spinner" style="width:20px;height:20px;"></div> Сохранение...';
+
+        db.ref('users/' + currentUser.uid).set(profile)
+            .then(() => {
+                currentUserProfile = profile;
+                showProfileMessage('Профиль успешно сохранён! ✅', true);
+                saveProfileBtn.innerHTML = '<i class="fas fa-check"></i> Сохранить профиль';
+                saveProfileBtn.disabled = false;
+                setTimeout(() => {
+                    showChat();
+                }, 800);
+            })
+            .catch((err) => {
+                showProfileMessage('Ошибка: ' + err.message, false);
+                saveProfileBtn.innerHTML = '<i class="fas fa-check"></i> Сохранить профиль';
+                saveProfileBtn.disabled = false;
+            });
+    });
+
+    function showProfileMessage(text, success = true) {
+        profileMessage.style.display = 'flex';
+        profileMessage.className = 'message show';
+        if (success) {
+            profileMessage.classList.add('success');
+            profileMessage.querySelector('.icon').textContent = '✅';
+        } else {
+            profileMessage.classList.remove('success');
+            profileMessage.querySelector('.icon').textContent = '⚠️';
+        }
+        profileMessageText.textContent = text;
+        setTimeout(() => {
+            profileMessage.style.display = 'none';
+        }, 4000);
+    }
+
+    // ============================================================
+    // 3. ЧАТ
+    // ============================================================
+
+    function showChat() {
+        authBox.style.display = 'none';
+        profileBox.style.display = 'none';
+        chatBox.style.display = 'block';
+
+        if (currentUserProfile) {
+            const name = currentUserProfile.firstName + (currentUserProfile.lastName ? ' ' + currentUserProfile.lastName : '');
+            chatUserName.innerHTML = name + `<small>онлайн</small>`;
+            const avatar = currentUserProfile.avatar || currentUserProfile.firstName.charAt(0).toUpperCase();
+            if (avatar.startsWith('http')) {
+                chatAvatar.style.backgroundImage = `url(${avatar})`;
+                chatAvatar.style.backgroundSize = 'cover';
+                chatAvatar.textContent = '';
+            } else {
+                chatAvatar.textContent = avatar;
+            }
+        }
+        loadMessages();
+    }
+
+    function loadMessages() {
+        const messagesRef = db.ref('messages');
+        messagesRef.off();
+
+        messagesDiv.innerHTML = '';
+
+        messagesRef.limitToLast(50).on('child_added', (snapshot) => {
+            const data = snapshot.val();
+            if (!data) return;
+            if (document.querySelector(`[data-id="${snapshot.key}"]`)) return;
+
+            const msgEl = document.createElement('div');
+            msgEl.className = 'msg';
+            msgEl.setAttribute('data-id', snapshot.key);
+
+            const avatarDiv = document.createElement('div');
+            avatarDiv.className = 'avatar-msg';
+            const senderName = data.name || 'Unknown';
+            const senderAvatar = data.avatar || senderName.charAt(0).toUpperCase();
+            if (senderAvatar.startsWith('http')) {
+                avatarDiv.style.backgroundImage = `url(${senderAvatar})`;
+                avatarDiv.style.backgroundSize = 'cover';
+                avatarDiv.textContent = '';
+            } else {
+                avatarDiv.textContent = senderAvatar;
+            }
+
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+
+            const senderSpan = document.createElement('div');
+            senderSpan.className = 'sender';
+            senderSpan.textContent = senderName;
+
+            const textSpan = document.createElement('div');
+            textSpan.className = 'text';
+            textSpan.textContent = data.text || '';
+
+            const timeSpan = document.createElement('div');
+            timeSpan.className = 'time';
+            if (data.timestamp) {
+                const date = new Date(data.timestamp);
+                timeSpan.textContent = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+
+            bubble.appendChild(senderSpan);
+            bubble.appendChild(textSpan);
+            bubble.appendChild(timeSpan);
+
+            msgEl.appendChild(avatarDiv);
+            msgEl.appendChild(bubble);
+
+            if (data.uid === currentUser.uid) {
+                msgEl.classList.add('me');
+            }
+
+            messagesDiv.appendChild(msgEl);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        });
+    }
+
+    function sendMessage() {
+        const text = messageInput.value.trim();
+        if (!text || !currentUser || !currentUserProfile) return;
+
+        const messagesRef = db.ref('messages');
+        messagesRef.push({
+            uid: currentUser.uid,
+            name: (currentUserProfile.firstName + (currentUserProfile.lastName ? ' ' + currentUserProfile.lastName : '')).trim() || currentUser.email,
+            avatar: currentUserProfile.avatar || '',
+            text: text,
+            timestamp: firebase.database.ServerValue.TIMESTAMP
         });
 
-        // ============================================================
-        //  Проверка профиля после входа
-        // ============================================================
-        function checkProfile() {
-            if (!currentUser) return;
-            const uid = currentUser.uid;
-            db.ref('users/' + uid).once('value')
+        messageInput.value = '';
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();
+    });
+
+    // ============================================================
+    // 4. ВЫХОД
+    // ============================================================
+
+    function logout() {
+        auth.signOut().then(() => {
+            currentUser = null;
+            currentUserProfile = null;
+            authBox.style.display = 'block';
+            profileBox.style.display = 'none';
+            chatBox.style.display = 'none';
+            messagesDiv.innerHTML = '<div class="empty">Сообщений пока нет</div>';
+            const messagesRef = db.ref('messages');
+            messagesRef.off();
+            emailInput.value = '';
+            // Очищаем профиль
+            firstName.value = '';
+            lastName.value = '';
+            gender.value = 'Секрет';
+            bio.value = '';
+            avatarUrl.value = '';
+            avatarPreview.innerHTML = `<i class="fas fa-user"></i>`;
+            profileAvatar.innerHTML = '👤';
+            profileMessage.style.display = 'none';
+            // Возвращаем шаг 1
+            step1.style.display = 'block';
+            step2.style.display = 'none';
+            codeInput.value = '';
+        });
+    }
+
+    logoutBtn.addEventListener('click', logout);
+
+    // ============================================================
+    // 5. СОСТОЯНИЕ АВТОРИЗАЦИИ
+    // ============================================================
+
+    auth.onAuthStateChanged((user) => {
+        if (user) {
+            currentUser = user;
+            // Проверяем профиль
+            db.ref('users/' + user.uid).once('value')
                 .then((snapshot) => {
                     const data = snapshot.val();
                     if (data) {
-                        // Профиль уже есть — сразу в чат
                         currentUserProfile = data;
                         showChat();
                     } else {
-                        // Нет профиля — показываем форму
                         showProfileForm();
                     }
                 })
-                .catch((err) => {
-                    console.error(err);
-                    showProfileForm(); // в случае ошибки тоже покажем форму
+                .catch(() => {
+                    showProfileForm();
                 });
-        }
-
-        function showProfileForm() {
-            authBox.style.display = 'none';
-            profileBox.style.display = 'block';
-            chatBox.style.display = 'none';
-            // Подставляем email для красоты
-            if (currentUser) {
-                const email = currentUser.email;
-                const name = email.split('@')[0];
-                // Можно предложить имя по умолчанию
-                firstName.value = name;
-            }
-            // Обновляем превью аватарки при вводе
-            avatarUrl.addEventListener('input', updateAvatarPreview);
-            updateAvatarPreview();
-        }
-
-        function updateAvatarPreview() {
-            const url = avatarUrl.value.trim();
-            if (url) {
-                avatarPreview.innerHTML = `<img src="${url}" alt="avatar">`;
-                profileAvatar.innerHTML = `<img src="${url}" alt="avatar" style="width:100%;height:100%;object-fit:cover;">`;
-            } else {
-                avatarPreview.innerHTML = `<i class="fas fa-user"></i>`;
-                profileAvatar.innerHTML = '👤';
-            }
-        }
-
-        // ============================================================
-        //  Сохранение профиля
-        // ============================================================
-        saveProfileBtn.addEventListener('click', () => {
-            const name = firstName.value.trim();
-            if (!name) {
-                showProfileMessage('Имя обязательно для заполнения', false);
-                return;
-            }
-
-            const profile = {
-                firstName: name,
-                lastName: lastName.value.trim() || '',
-                gender: gender.value || 'Секрет',
-                bio: bio.value.trim() || '',
-                avatar: avatarUrl.value.trim() || '',
-                email: currentUser.email,
-                createdAt: firebase.database.ServerValue.TIMESTAMP,
-                updatedAt: firebase.database.ServerValue.TIMESTAMP
-            };
-
-            saveProfileBtn.disabled = true;
-            saveProfileBtn.innerHTML = '<div class="spinner" style="width:20px;height:20px;"></div> Сохранение...';
-
-            db.ref('users/' + currentUser.uid).set(profile)
-                .then(() => {
-                    currentUserProfile = profile;
-                    showProfileMessage('Профиль успешно сохранён! ✅', true);
-                    saveProfileBtn.innerHTML = '<i class="fas fa-check"></i> Сохранить профиль';
-                    saveProfileBtn.disabled = false;
-                    setTimeout(() => {
-                        showChat();
-                    }, 800);
-                })
-                .catch((err) => {
-                    showProfileMessage('Ошибка: ' + err.message, false);
-                    saveProfileBtn.innerHTML = '<i class="fas fa-check"></i> Сохранить профиль';
-                    saveProfileBtn.disabled = false;
-                });
-        });
-
-        function showProfileMessage(text, success = true) {
-            profileMessage.style.display = 'flex';
-            profileMessage.className = 'message show';
-            if (success) {
-                profileMessage.classList.add('success');
-                profileMessage.querySelector('.icon').textContent = '✅';
-            } else {
-                profileMessage.classList.remove('success');
-                profileMessage.querySelector('.icon').textContent = '⚠️';
-            }
-            profileMessageText.textContent = text;
-            setTimeout(() => {
-                profileMessage.style.display = 'none';
-            }, 4000);
-        }
-
-        // ============================================================
-        //  Чат
-        // ============================================================
-        function showChat() {
-            authBox.style.display = 'none';
+        } else {
+            currentUser = null;
+            currentUserProfile = null;
+            authBox.style.display = 'block';
             profileBox.style.display = 'none';
-            chatBox.style.display = 'block';
-
-            // Обновляем информацию о пользователе в шапке
-            if (currentUserProfile) {
-                const name = currentUserProfile.firstName + (currentUserProfile.lastName ? ' ' + currentUserProfile
-                    .lastName : '');
-                chatUserName.innerHTML = name + `<small>онлайн</small>`;
-                const avatar = currentUserProfile.avatar || currentUserProfile.firstName.charAt(0).toUpperCase();
-                if (avatar.startsWith('http')) {
-                    chatAvatar.style.backgroundImage = `url(${avatar})`;
-                    chatAvatar.style.backgroundSize = 'cover';
-                    chatAvatar.textContent = '';
-                } else {
-                    chatAvatar.textContent = avatar;
-                }
-            }
-
-            loadMessages();
-        }
-
-        // --- Загрузка сообщений ---
-        function loadMessages() {
+            chatBox.style.display = 'none';
+            messagesDiv.innerHTML = '<div class="empty">Сообщений пока нет</div>';
             const messagesRef = db.ref('messages');
             messagesRef.off();
-
-            // Очищаем сообщения, но оставляем заглушку
-            messagesDiv.innerHTML = '';
-
-            messagesRef.limitToLast(50).on('child_added', (snapshot) => {
-                const data = snapshot.val();
-                if (!data) return;
-                if (document.querySelector(`[data-id="${snapshot.key}"]`)) return;
-
-                const msgEl = document.createElement('div');
-                msgEl.className = 'msg';
-                msgEl.setAttribute('data-id', snapshot.key);
-
-                // Аватар отправителя
-                const avatarDiv = document.createElement('div');
-                avatarDiv.className = 'avatar-msg';
-                const senderName = data.name || 'Unknown';
-                const senderAvatar = data.avatar || senderName.charAt(0).toUpperCase();
-                if (senderAvatar.startsWith('http')) {
-                    avatarDiv.style.backgroundImage = `url(${senderAvatar})`;
-                    avatarDiv.style.backgroundSize = 'cover';
-                    avatarDiv.textContent = '';
-                } else {
-                    avatarDiv.textContent = senderAvatar;
-                }
-
-                // Пузырёк
-                const bubble = document.createElement('div');
-                bubble.className = 'bubble';
-
-                const senderSpan = document.createElement('div');
-                senderSpan.className = 'sender';
-                senderSpan.textContent = senderName;
-
-                const textSpan = document.createElement('div');
-                textSpan.className = 'text';
-                textSpan.textContent = data.text || '';
-
-                const timeSpan = document.createElement('div');
-                timeSpan.className = 'time';
-                if (data.timestamp) {
-                    const date = new Date(data.timestamp);
-                    timeSpan.textContent = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                }
-
-                bubble.appendChild(senderSpan);
-                bubble.appendChild(textSpan);
-                bubble.appendChild(timeSpan);
-
-                msgEl.appendChild(avatarDiv);
-                msgEl.appendChild(bubble);
-
-                // Если сообщение от текущего пользователя — добавляем класс me
-                if (data.uid === currentUser.uid) {
-                    msgEl.classList.add('me');
-                }
-
-                messagesDiv.appendChild(msgEl);
-                messagesDiv.scrollTop = messagesDiv.scrollHeight;
-            });
+            step1.style.display = 'block';
+            step2.style.display = 'none';
         }
+    });
 
-        // --- Отправка сообщения ---
-        function sendMessage() {
-            const text = messageInput.value.trim();
-            if (!text || !currentUser || !currentUserProfile) return;
+    // ============================================================
+    // 6. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+    // ============================================================
 
-            const messagesRef = db.ref('messages');
-            messagesRef.push({
-                uid: currentUser.uid,
-                name: (currentUserProfile.firstName + (currentUserProfile.lastName ? ' ' + currentUserProfile.lastName :
-                    '')).trim() || currentUser.email,
-                avatar: currentUserProfile.avatar || '',
-                text: text,
-                timestamp: firebase.database.ServerValue.TIMESTAMP
-            });
-
-            messageInput.value = '';
+    function showMessage(text, isSuccess = true) {
+        messageBox.className = 'message show';
+        if (isSuccess) {
+            messageBox.classList.add('success');
+            messageBox.querySelector('.icon').textContent = '✅';
+        } else {
+            messageBox.classList.remove('success');
+            messageBox.querySelector('.icon').textContent = '⚠️';
         }
+        messageText.textContent = text;
+        setTimeout(() => {
+            messageBox.classList.remove('show');
+        }, 5000);
+    }
 
-        sendBtn.addEventListener('click', sendMessage);
-        messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendMessage();
-        });
-
-        // --- Выход ---
-        function logout() {
-            auth.signOut().then(() => {
-                currentUser = null;
-                currentUserProfile = null;
-                authBox.style.display = 'block';
-                profileBox.style.display = 'none';
-                chatBox.style.display = 'none';
-                messagesDiv.innerHTML = '<div class="empty">Сообщений пока нет</div>';
-                const messagesRef = db.ref('messages');
-                messagesRef.off();
-                emailInput.value = '';
-                // Очищаем поля профиля для следующего входа
-                firstName.value = '';
-                lastName.value = '';
-                gender.value = 'Секрет';
-                bio.value = '';
-                avatarUrl.value = '';
-                avatarPreview.innerHTML = `<i class="fas fa-user"></i>`;
-                profileAvatar.innerHTML = '👤';
-                profileMessage.style.display = 'none';
-            });
+    function showCodeMessage(text, success = true) {
+        codeMessage.style.display = 'flex';
+        if (success) {
+            codeMessage.classList.add('success');
+            codeMessage.querySelector('.icon').textContent = '✅';
+        } else {
+            codeMessage.classList.remove('success');
+            codeMessage.querySelector('.icon').textContent = '⚠️';
         }
-
-        logoutBtn.addEventListener('click', logout);
-
-        // ============================================================
-        //  Состояние авторизации (главный слушатель)
-        // ============================================================
-        auth.onAuthStateChanged((user) => {
-            if (user) {
-                currentUser = user;
-                // Проверяем профиль
-                db.ref('users/' + user.uid).once('value')
-                    .then((snapshot) => {
-                        const data = snapshot.val();
-                        if (data) {
-                            currentUserProfile = data;
-                            showChat();
-                        } else {
-                            showProfileForm();
-                        }
-                    })
-                    .catch(() => {
-                        showProfileForm();
-                    });
-            } else {
-                currentUser = null;
-                currentUserProfile = null;
-                authBox.style.display = 'block';
-                profileBox.style.display = 'none';
-                chatBox.style.display = 'none';
-                messagesDiv.innerHTML = '<div class="empty">Сообщений пока нет</div>';
-                const messagesRef = db.ref('messages');
-                messagesRef.off();
-            }
-        });
-
-        // ============================================================
-        //  Вспомогательные функции
-        // ============================================================
-        function showMessage(text, isSuccess = true) {
-            messageBox.className = 'message show';
-            if (isSuccess) {
-                messageBox.classList.add('success');
-                messageBox.querySelector('.icon').textContent = '✅';
-            } else {
-                messageBox.classList.remove('success');
-                messageBox.querySelector('.icon').textContent = '⚠️';
-            }
-            messageText.textContent = text;
-            setTimeout(() => {
-                messageBox.classList.remove('show');
-            }, 5000);
-        }
-    </script>
-
+        codeMessageText.textContent = text;
+        setTimeout(() => {
+            codeMessage.style.display = 'none';
+        }, 5000);
+    }
+</script>
 </body>
 </html>
