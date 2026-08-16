@@ -116,8 +116,15 @@ const remoteVideo = document.getElementById('remoteVideo');
 const localVideo = document.getElementById('localVideo');
 const hangupBtn = document.getElementById('hangupBtn');
 
+// Новые элементы для заявок
+const requestsBtn = document.getElementById('requestsBtn');
+const requestsModal = document.getElementById('requestsModal');
+const requestsModalClose = document.getElementById('requestsModalClose');
+const requestsList = document.getElementById('requestsList');
+const requestsBadge = document.getElementById('requestsBadge');
+
 // ============================================================
-// 1. АВТОРИЗАЦИЯ (вкладки)
+// 1. АВТОРИЗАЦИЯ (вкладки) – без изменений
 // ============================================================
 document.querySelectorAll('.auth-tabs button').forEach(btn => {
     btn.addEventListener('click', function() {
@@ -130,7 +137,7 @@ document.querySelectorAll('.auth-tabs button').forEach(btn => {
 });
 
 // ============================================================
-// 2. ВХОД ПО ПАРОЛЮ (исправлен с логами)
+// 2. ВХОД ПО ПАРОЛЮ (без изменений)
 // ============================================================
 loginPasswordBtn.addEventListener('click', () => {
     const email = loginEmail.value.trim();
@@ -145,7 +152,6 @@ loginPasswordBtn.addEventListener('click', () => {
     auth.signInWithEmailAndPassword(email, pass)
         .then(userCred => {
             console.log('✅ Вход успешен, uid:', userCred.user.uid);
-            // Проверяем 2FA
             const uid = userCred.user.uid;
             return db.ref('users/' + uid + '/twoFactorEnabled').once('value')
                 .then(snapshot => {
@@ -633,7 +639,7 @@ deleteAccountBtn.addEventListener('click', () => {
 closeProfileBtn.addEventListener('click', closeProfile);
 
 // ============================================================
-// 7. ЧАТ (исправлен поиск пользователей)
+// 7. ЧАТ (без изменений, кроме добавления обновления бейджа)
 // ============================================================
 function showChat() {
     authBox.style.display = 'none';
@@ -642,6 +648,7 @@ function showChat() {
     setPasswordBox.style.display = 'none';
     updateChatHeader();
     loadChatList();
+    updateRequestsBadge(); // обновить бейдж при входе
 }
 
 function updateChatHeader() {
@@ -880,7 +887,7 @@ backToChatList.addEventListener('click', () => {
 });
 
 // ============================================================
-// 8. ПОИСК И ЗАЯВКИ (исправлен с обработкой ошибок)
+// 8. ПОИСК И ЗАЯВКИ (с обновлением бейджа)
 // ============================================================
 searchBtn.addEventListener('click', () => {
     const query = searchInput.value.trim().toLowerCase();
@@ -895,7 +902,6 @@ searchBtn.addEventListener('click', () => {
                 searchResults.innerHTML = '<div style="color:rgba(255,255,255,0.5); padding:10px;">Ничего не найдено</div>';
                 return;
             }
-            // Отображаем найденных пользователей
             Object.entries(results).forEach(([uid, user]) => {
                 if (uid === currentUser.uid) return;
                 const isBlocked = (currentUserProfile.blocked || []).includes(uid);
@@ -941,6 +947,7 @@ function sendFriendRequest(toUid) {
             }).then(() => {
                 showProfileMessage('Заявка отправлена!', true);
                 searchResults.style.display = 'none';
+                updateRequestsBadge();
             }).catch(err => {
                 showProfileMessage('Ошибка: ' + err.message, false);
             });
@@ -948,7 +955,270 @@ function sendFriendRequest(toUid) {
 }
 
 // ============================================================
-// 9. БЛОКИРОВКА
+// 9. ЗАПРОСЫ (отображение, принятие, отклонение, отмена)
+// ============================================================
+function updateRequestsBadge() {
+    if (!currentUser) return;
+    db.ref('friendRequests').orderByChild('to').equalTo(currentUser.uid)
+        .once('value')
+        .then(snapshot => {
+            const data = snapshot.val();
+            let count = 0;
+            if (data) {
+                count = Object.values(data).filter(req => req.status === 'pending').length;
+            }
+            if (count > 0) {
+                requestsBadge.style.display = 'inline';
+                requestsBadge.textContent = count;
+            } else {
+                requestsBadge.style.display = 'none';
+            }
+        });
+}
+
+function loadRequests() {
+    if (!currentUser) return;
+    const list = document.getElementById('requestsList');
+    list.innerHTML = '<div style="color:rgba(255,255,255,0.4); text-align:center; padding:20px;">Загрузка...</div>';
+
+    // Загружаем входящие
+    const incomingRef = db.ref('friendRequests').orderByChild('to').equalTo(currentUser.uid);
+    const outgoingRef = db.ref('friendRequests').orderByChild('from').equalTo(currentUser.uid);
+
+    // Получаем обе выборки
+    Promise.all([
+        incomingRef.once('value'),
+        outgoingRef.once('value')
+    ]).then(([incomingSnap, outgoingSnap]) => {
+        const incomingData = incomingSnap.val() || {};
+        const outgoingData = outgoingSnap.val() || {};
+
+        // Фильтруем только pending
+        const incomingPending = Object.entries(incomingData).filter(([key, req]) => req.status === 'pending');
+        const outgoingPending = Object.entries(outgoingData).filter(([key, req]) => req.status === 'pending');
+
+        // Отображаем вкладки
+        let html = `
+            <div class="requests-tabs">
+                <button class="active" data-rtab="incoming">Входящие (${incomingPending.length})</button>
+                <button data-rtab="outgoing">Исходящие (${outgoingPending.length})</button>
+            </div>
+            <div id="requestsContentInner">
+                <div id="incomingList" style="max-height:300px; overflow-y:auto;">
+        `;
+
+        if (incomingPending.length === 0) {
+            html += `<div style="color:rgba(255,255,255,0.4); text-align:center; padding:20px;">Нет входящих заявок</div>`;
+        } else {
+            // Для каждой входящей заявки получаем данные отправителя
+            const promises = incomingPending.map(([key, req]) => {
+                return db.ref('users/' + req.from).once('value').then(snap => {
+                    const user = snap.val();
+                    return { key, req, user };
+                });
+            });
+            return Promise.all(promises).then(results => {
+                results.forEach(({ key, req, user }) => {
+                    if (user) {
+                        html += `
+                            <div class="request-item" data-key="${key}">
+                                <div class="info">
+                                    <div class="name">${user.firstName || 'Пользователь'} ${user.lastName || ''}</div>
+                                    <div class="email">${user.email || ''}</div>
+                                </div>
+                                <div class="actions">
+                                    <button class="accept" data-key="${key}" data-uid="${req.from}">Принять</button>
+                                    <button class="reject" data-key="${key}">Отклонить</button>
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+                // Добавляем исходящие
+                html += `</div><div id="outgoingList" style="display:none; max-height:300px; overflow-y:auto;">`;
+                if (outgoingPending.length === 0) {
+                    html += `<div style="color:rgba(255,255,255,0.4); text-align:center; padding:20px;">Нет исходящих заявок</div>`;
+                } else {
+                    const promises2 = outgoingPending.map(([key, req]) => {
+                        return db.ref('users/' + req.to).once('value').then(snap => {
+                            const user = snap.val();
+                            return { key, req, user };
+                        });
+                    });
+                    return Promise.all(promises2).then(results2 => {
+                        results2.forEach(({ key, req, user }) => {
+                            if (user) {
+                                html += `
+                                    <div class="request-item" data-key="${key}">
+                                        <div class="info">
+                                            <div class="name">${user.firstName || 'Пользователь'} ${user.lastName || ''}</div>
+                                            <div class="email">${user.email || ''}</div>
+                                        </div>
+                                        <div class="actions">
+                                            <button class="cancel" data-key="${key}">Отменить</button>
+                                        </div>
+                                    </div>
+                                `;
+                            }
+                        });
+                        html += `</div>`;
+                        // Вставляем в DOM
+                        list.innerHTML = html;
+                        // Добавляем обработчики
+                        addRequestListeners();
+                        // Управление вкладками
+                        document.querySelectorAll('.requests-tabs button').forEach(btn => {
+                            btn.addEventListener('click', function() {
+                                document.querySelectorAll('.requests-tabs button').forEach(b => b.classList.remove('active'));
+                                this.classList.add('active');
+                                const tab = this.dataset.rtab;
+                                document.getElementById('incomingList').style.display = tab === 'incoming' ? 'block' : 'none';
+                                document.getElementById('outgoingList').style.display = tab === 'outgoing' ? 'block' : 'none';
+                            });
+                        });
+                    });
+                }
+            });
+        }
+        // Если нет входящих, просто показываем исходящие
+        if (incomingPending.length === 0) {
+            html += `</div><div id="outgoingList" style="max-height:300px; overflow-y:auto;">`;
+            if (outgoingPending.length === 0) {
+                html += `<div style="color:rgba(255,255,255,0.4); text-align:center; padding:20px;">Нет исходящих заявок</div>`;
+            } else {
+                const promises2 = outgoingPending.map(([key, req]) => {
+                    return db.ref('users/' + req.to).once('value').then(snap => {
+                        const user = snap.val();
+                        return { key, req, user };
+                    });
+                });
+                return Promise.all(promises2).then(results2 => {
+                    results2.forEach(({ key, req, user }) => {
+                        if (user) {
+                            html += `
+                                <div class="request-item" data-key="${key}">
+                                    <div class="info">
+                                        <div class="name">${user.firstName || 'Пользователь'} ${user.lastName || ''}</div>
+                                        <div class="email">${user.email || ''}</div>
+                                    </div>
+                                    <div class="actions">
+                                        <button class="cancel" data-key="${key}">Отменить</button>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    });
+                    html += `</div>`;
+                    list.innerHTML = html;
+                    addRequestListeners();
+                    document.querySelectorAll('.requests-tabs button').forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            document.querySelectorAll('.requests-tabs button').forEach(b => b.classList.remove('active'));
+                            this.classList.add('active');
+                            const tab = this.dataset.rtab;
+                            document.getElementById('incomingList').style.display = tab === 'incoming' ? 'block' : 'none';
+                            document.getElementById('outgoingList').style.display = tab === 'outgoing' ? 'block' : 'none';
+                        });
+                    });
+                });
+            }
+            list.innerHTML = html;
+            addRequestListeners();
+        }
+    }).catch(err => {
+        list.innerHTML = `<div style="color:red; padding:10px;">Ошибка загрузки: ${err.message}</div>`;
+    });
+}
+
+function addRequestListeners() {
+    // Принять заявку
+    document.querySelectorAll('.accept').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const key = this.dataset.key;
+            const uid = this.dataset.uid;
+            acceptRequest(key, uid);
+        });
+    });
+    // Отклонить заявку
+    document.querySelectorAll('.reject').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const key = this.dataset.key;
+            rejectRequest(key);
+        });
+    });
+    // Отменить заявку
+    document.querySelectorAll('.cancel').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const key = this.dataset.key;
+            cancelRequest(key);
+        });
+    });
+}
+
+function acceptRequest(key, friendUid) {
+    // Создаём чат между пользователями
+    const chatId = [currentUser.uid, friendUid].sort().join('_');
+    const chatRef = db.ref('chats/' + chatId);
+    chatRef.set({
+        participants: [currentUser.uid, friendUid],
+        lastMessage: 'Начните общение!',
+        lastTimestamp: Date.now()
+    }).then(() => {
+        // Удаляем заявку
+        return db.ref('friendRequests/' + key).remove();
+    }).then(() => {
+        showProfileMessage('Заявка принята! Чат создан.', true);
+        loadRequests();
+        updateRequestsBadge();
+        loadChatList(); // обновить список чатов
+    }).catch(err => {
+        showProfileMessage('Ошибка: ' + err.message, false);
+    });
+}
+
+function rejectRequest(key) {
+    db.ref('friendRequests/' + key).remove()
+        .then(() => {
+            showProfileMessage('Заявка отклонена.', true);
+            loadRequests();
+            updateRequestsBadge();
+        })
+        .catch(err => {
+            showProfileMessage('Ошибка: ' + err.message, false);
+        });
+}
+
+function cancelRequest(key) {
+    db.ref('friendRequests/' + key).remove()
+        .then(() => {
+            showProfileMessage('Заявка отменена.', true);
+            loadRequests();
+            updateRequestsBadge();
+        })
+        .catch(err => {
+            showProfileMessage('Ошибка: ' + err.message, false);
+        });
+}
+
+// Открытие модалки заявок
+requestsBtn.addEventListener('click', () => {
+    requestsModal.classList.add('show');
+    loadRequests();
+});
+
+requestsModalClose.addEventListener('click', () => {
+    requestsModal.classList.remove('show');
+});
+
+// Закрытие по клику вне модалки
+requestsModal.addEventListener('click', (e) => {
+    if (e.target === requestsModal) {
+        requestsModal.classList.remove('show');
+    }
+});
+
+// ============================================================
+// 10. БЛОКИРОВКА (без изменений)
 // ============================================================
 function blockUser(uid) {
     const blockedList = currentUserProfile.blocked || [];
@@ -969,7 +1239,7 @@ function blockUser(uid) {
 }
 
 // ============================================================
-// 10. ВСПОМОГАТЕЛЬНЫЕ
+// 11. ВСПОМОГАТЕЛЬНЫЕ
 // ============================================================
 function showLoginMessage(text, success) {
     loginMessage.style.display = 'flex';
@@ -1036,7 +1306,7 @@ function verify2FACode(email, code) {
 }
 
 // ============================================================
-// 11. ЗВОНКИ (WebRTC)
+// 12. ЗВОНКИ (без изменений)
 // ============================================================
 let peerConnection = null;
 let localStream = null;
@@ -1170,7 +1440,6 @@ function showCallUI() {
 
 hangupBtn.addEventListener('click', endCall);
 
-// Слушаем входящие звонки
 auth.onAuthStateChanged(user => {
     if (user) {
         const callsRef = db.ref('calls');
@@ -1188,7 +1457,7 @@ auth.onAuthStateChanged(user => {
 });
 
 // ============================================================
-// 12. СОСТОЯНИЕ АВТОРИЗАЦИИ
+// 13. СОСТОЯНИЕ АВТОРИЗАЦИИ
 // ============================================================
 auth.onAuthStateChanged((user) => {
     if (user) {
@@ -1204,7 +1473,6 @@ auth.onAuthStateChanged((user) => {
                         showChat();
                     }
                 } else {
-                    // Профиль не найден – предлагаем создать
                     showSetPassword(user);
                 }
             })
@@ -1219,7 +1487,6 @@ auth.onAuthStateChanged((user) => {
         if (messagesListener) messagesListener.off();
         currentUser = null;
         currentUserProfile = null;
-        // Закрываем звонки
         if (peerConnection) {
             peerConnection.close();
             peerConnection = null;
@@ -1237,7 +1504,7 @@ auth.onAuthStateChanged((user) => {
 });
 
 // ============================================================
-// 13. ВЫХОД
+// 14. ВЫХОД
 // ============================================================
 logoutBtn.addEventListener('click', () => {
     auth.signOut();
@@ -1246,6 +1513,6 @@ logoutBtn.addEventListener('click', () => {
 settingsBtn.addEventListener('click', openProfile);
 
 // ============================================================
-// 14. ЗАПУСК (проверка консоли)
+// 15. ЗАПУСК (консоль)
 // ============================================================
 console.log('✅ ZING app.js загружен и готов к работе!');
