@@ -26,11 +26,14 @@ let currentChatId = null;
 let currentChatPartnerUid = null;
 let messagesListener = null;
 let tempUserForPassword = null;
+let statusListener = null;
+let typingListener = null;
+let typingTimeout = null;
 
 const FIREBASE_DB_URL = 'https://zing-4a547-default-rtdb.europe-west1.firebasedatabase.app';
 
 // ============================================================
-// DOM-ЭЛЕМЕНТЫ
+// DOM-ЭЛЕМЕНТЫ (все)
 // ============================================================
 const authBox = document.getElementById('authBox');
 const profileBox = document.getElementById('profileBox');
@@ -84,6 +87,7 @@ const twoFactorToggle = document.getElementById('twoFactorToggle');
 
 const chatAvatar = document.getElementById('chatAvatar');
 const chatUserName = document.getElementById('chatUserName');
+const chatStatus = document.getElementById('chatStatus');
 const logoutBtn = document.getElementById('logoutBtn');
 const settingsBtn = document.getElementById('settingsBtn');
 const searchInput = document.getElementById('searchInput');
@@ -636,7 +640,7 @@ deleteAccountBtn.addEventListener('click', () => {
 closeProfileBtn.addEventListener('click', closeProfile);
 
 // ============================================================
-// 7. ЧАТ (исправлен loadChatList и openChat)
+// 7. ЧАТ (с поддержкой статуса и печатания)
 // ============================================================
 function showChat() {
     authBox.style.display = 'none';
@@ -646,12 +650,14 @@ function showChat() {
     updateChatHeader();
     loadChatList();
     updateRequestsBadge();
+    // Устанавливаем статус текущего пользователя
+    setUserStatus(currentUser.uid, true);
 }
 
 function updateChatHeader() {
     if (currentUserProfile) {
         const name = (currentUserProfile.firstName || '') + (currentUserProfile.lastName ? ' ' + currentUserProfile.lastName : '');
-        chatUserName.innerHTML = (name || 'Пользователь') + `<small>онлайн</small>`;
+        chatUserName.innerHTML = (name || 'Пользователь') + `<small id="chatStatus" class="chat-status">онлайн</small>`;
         const avatar = currentUserProfile.avatar || (currentUserProfile.firstName ? currentUserProfile.firstName.charAt(0).toUpperCase() : 'Z');
         if (avatar && avatar.startsWith('http')) {
             chatAvatar.style.backgroundImage = `url(${avatar})`;
@@ -664,53 +670,142 @@ function updateChatHeader() {
     }
 }
 
+// ===== Статус пользователя =====
+function setUserStatus(uid, online) {
+    const updates = {
+        online: online,
+        lastSeen: firebase.database.ServerValue.TIMESTAMP
+    };
+    db.ref('users/' + uid + '/status').update(updates)
+        .catch(err => console.error('Ошибка обновления статуса:', err));
+}
+
+// Слушаем статус собеседника
+function listenPartnerStatus(partnerUid) {
+    if (statusListener) {
+        statusListener.off();
+        statusListener = null;
+    }
+    const statusRef = db.ref('users/' + partnerUid + '/status');
+    statusListener = statusRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (!data) return;
+        updatePartnerStatusUI(data);
+    });
+}
+
+function updatePartnerStatusUI(data) {
+    const statusEl = document.getElementById('chatStatus');
+    if (!statusEl) return;
+    if (data.online) {
+        statusEl.textContent = 'онлайн';
+        statusEl.className = 'chat-status online';
+    } else {
+        const lastSeen = data.lastSeen;
+        if (lastSeen) {
+            const date = new Date(lastSeen);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMin = Math.floor(diffMs / 60000);
+            let text = 'был(а) ';
+            if (diffMin < 1) text += 'только что';
+            else if (diffMin < 60) text += diffMin + ' мин назад';
+            else if (diffMin < 1440) text += Math.floor(diffMin / 60) + ' ч назад';
+            else text += 'вчера в ' + date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+            statusEl.textContent = text;
+            statusEl.className = 'chat-status';
+        } else {
+            statusEl.textContent = 'не в сети';
+            statusEl.className = 'chat-status';
+        }
+    }
+}
+
+// ===== Индикатор «печатает» =====
+function listenTyping(chatId) {
+    if (typingListener) {
+        typingListener.off();
+        typingListener = null;
+    }
+    const typingRef = db.ref('chats/' + chatId + '/typing');
+    typingListener = typingRef.on('value', (snapshot) => {
+        const typingData = snapshot.val();
+        const statusEl = document.getElementById('chatStatus');
+        if (!statusEl) return;
+        if (typingData && typingData.uid !== currentUser.uid && typingData.isTyping) {
+            statusEl.textContent = 'печатает...';
+            statusEl.className = 'chat-status typing';
+        } else {
+            // Восстанавливаем статус (онлайн/офлайн)
+            if (currentChatPartnerUid) {
+                listenPartnerStatus(currentChatPartnerUid);
+            }
+        }
+    });
+}
+
+function setTyping(chatId, isTyping) {
+    if (!chatId) return;
+    const typingRef = db.ref('chats/' + chatId + '/typing');
+    if (isTyping) {
+        typingRef.set({ uid: currentUser.uid, isTyping: true, timestamp: Date.now() });
+    } else {
+        typingRef.set({ uid: currentUser.uid, isTyping: false });
+    }
+}
+
+// ===== Загрузка списка чатов =====
 function loadChatList() {
     const chatsRef = db.ref('chats');
     chatsRef.off();
     chatList.innerHTML = '<div style="color:rgba(255,255,255,0.3); padding:20px; text-align:center;">Загрузка...</div>';
-    chatsRef.orderByChild('participants').startAt(currentUser.uid).endAt(currentUser.uid + '\uf8ff')
-        .on('value', (snapshot) => {
-            const data = snapshot.val();
-            chatList.innerHTML = '';
-            if (!data) {
-                chatList.innerHTML = '<div style="color:rgba(255,255,255,0.3); padding:20px; text-align:center;">Нет чатов. Начните общение!</div>';
-                return;
-            }
-            // Фильтруем чаты, где participants содержит текущего пользователя (объектная структура)
-            const chats = Object.entries(data).filter(([id, chat]) => {
-                return chat.participants && chat.participants[currentUser.uid] === true;
-            });
-            if (chats.length === 0) {
-                chatList.innerHTML = '<div style="color:rgba(255,255,255,0.3); padding:20px; text-align:center;">Нет чатов. Начните общение!</div>';
-                return;
-            }
-            chats.sort((a, b) => (b[1].lastTimestamp || 0) - (a[1].lastTimestamp || 0));
-            chats.forEach(([chatId, chat]) => {
-                const partnerUid = Object.keys(chat.participants).find(uid => uid !== currentUser.uid);
-                if (!partnerUid) return;
-                db.ref('users/' + partnerUid).once('value').then(snap => {
-                    const partner = snap.val();
-                    if (!partner) return;
-                    const div = document.createElement('div');
-                    div.className = 'chat-item';
-                    const avatarLetter = (partner.avatar && partner.avatar.startsWith('http')) ? '' : (partner.firstName ? partner.firstName.charAt(0).toUpperCase() : '?');
-                    div.innerHTML = `
-                        <div class="chat-avatar" style="${partner.avatar && partner.avatar.startsWith('http') ? `background-image:url(${partner.avatar}); background-size:cover;` : ''}">${avatarLetter}</div>
-                        <div class="chat-info">
-                            <div class="chat-name">${partner.firstName} ${partner.lastName || ''}</div>
-                            <div class="chat-last">${chat.lastMessage || 'Напишите первым'}</div>
-                        </div>
-                        <div class="chat-time">${chat.lastTimestamp ? new Date(chat.lastTimestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : ''}</div>
-                    `;
-                    div.addEventListener('click', () => {
-                        openChat(chatId, partnerUid, partner);
-                    });
-                    chatList.appendChild(div);
+
+    chatsRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        chatList.innerHTML = '';
+        if (!data) {
+            chatList.innerHTML = '<div style="color:rgba(255,255,255,0.3); padding:20px; text-align:center;">Нет чатов. Начните общение!</div>';
+            return;
+        }
+
+        const userChats = Object.entries(data).filter(([chatId, chat]) => {
+            return chat.participants && chat.participants[currentUser.uid] === true;
+        });
+
+        if (userChats.length === 0) {
+            chatList.innerHTML = '<div style="color:rgba(255,255,255,0.3); padding:20px; text-align:center;">Нет чатов. Начните общение!</div>';
+            return;
+        }
+
+        userChats.sort((a, b) => (b[1].lastTimestamp || 0) - (a[1].lastTimestamp || 0));
+
+        userChats.forEach(([chatId, chat]) => {
+            const partnerUid = Object.keys(chat.participants).find(uid => uid !== currentUser.uid);
+            if (!partnerUid) return;
+            db.ref('users/' + partnerUid).once('value').then(snap => {
+                const partner = snap.val();
+                if (!partner) return;
+                const div = document.createElement('div');
+                div.className = 'chat-item';
+                const avatarLetter = (partner.avatar && partner.avatar.startsWith('http')) ? '' : (partner.firstName ? partner.firstName.charAt(0).toUpperCase() : '?');
+                div.innerHTML = `
+                    <div class="chat-avatar" style="${partner.avatar && partner.avatar.startsWith('http') ? `background-image:url(${partner.avatar}); background-size:cover;` : ''}">${avatarLetter}</div>
+                    <div class="chat-info">
+                        <div class="chat-name">${partner.firstName} ${partner.lastName || ''}</div>
+                        <div class="chat-last">${chat.lastMessage || 'Напишите первым'}</div>
+                    </div>
+                    <div class="chat-time">${chat.lastTimestamp ? new Date(chat.lastTimestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : ''}</div>
+                `;
+                div.addEventListener('click', () => {
+                    openChat(chatId, partnerUid, partner);
                 });
+                chatList.appendChild(div);
             });
         });
+    });
 }
 
+// ===== Открытие чата =====
 function openChat(chatId, partnerUid, partnerData) {
     currentChatId = chatId;
     currentChatPartnerUid = partnerUid;
@@ -727,9 +822,27 @@ function openChat(chatId, partnerUid, partnerData) {
     };
     callBtn.style.display = 'inline-block';
     callBtn.onclick = () => startCall(partnerUid, partnerData.firstName);
+
+    // Слушаем статус собеседника
+    listenPartnerStatus(partnerUid);
+    // Слушаем печатание
+    listenTyping(chatId);
+
     loadMessages(chatId);
+
+    // Обработчик ввода текста для отправки сигнала "печатает"
+    messageInput.addEventListener('input', function() {
+        if (currentChatId) {
+            setTyping(currentChatId, true);
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                setTyping(currentChatId, false);
+            }, 2000);
+        }
+    });
 }
 
+// ===== Загрузка сообщений =====
 function loadMessages(chatId) {
     if (messagesListener) {
         messagesListener.off();
@@ -812,6 +925,7 @@ function loadMessages(chatId) {
     messagesListener = messagesRef;
 }
 
+// ===== Отправка сообщения =====
 function sendMessage() {
     const text = messageInput.value.trim();
     if (!text || !currentChatId) return;
@@ -882,6 +996,8 @@ backToChatList.addEventListener('click', () => {
     currentChatId = null;
     currentChatPartnerUid = null;
     callBtn.style.display = 'none';
+    if (typingListener) typingListener.off();
+    if (statusListener) statusListener.off();
 });
 
 // ============================================================
@@ -953,7 +1069,7 @@ function sendFriendRequest(toUid) {
 }
 
 // ============================================================
-// 9. ЗАПРОСЫ (исправленные с объектной структурой participants)
+// 9. ЗАПРОСЫ
 // ============================================================
 function updateRequestsBadge() {
     if (!currentUser) return;
@@ -1059,7 +1175,6 @@ async function loadRequests() {
         html += `</div></div>`;
         list.innerHTML = html;
 
-        // Добавляем обработчики
         document.querySelectorAll('.accept').forEach(btn => {
             btn.addEventListener('click', function() {
                 const key = this.dataset.key;
@@ -1080,7 +1195,6 @@ async function loadRequests() {
             });
         });
 
-        // Переключение вкладок
         document.querySelectorAll('.requests-tabs button').forEach(btn => {
             btn.addEventListener('click', function() {
                 document.querySelectorAll('.requests-tabs button').forEach(b => b.classList.remove('active'));
@@ -1103,12 +1217,8 @@ function acceptRequest(key, friendUid) {
     console.log('✅ Принимаем заявку:', key, 'от пользователя:', friendUid);
     const chatId = [currentUser.uid, friendUid].sort().join('_');
     const chatRef = db.ref('chats/' + chatId);
-    // Используем объектную структуру для participants
-    const participants = {};
-    participants[currentUser.uid] = true;
-    participants[friendUid] = true;
     chatRef.set({
-        participants: participants,
+        participants: { [currentUser.uid]: true, [friendUid]: true },
         lastMessage: 'Начните общение!',
         lastTimestamp: Date.now()
     })
@@ -1119,13 +1229,9 @@ function acceptRequest(key, friendUid) {
     .then(() => {
         console.log('✅ Заявка удалена');
         showProfileMessage('✅ Заявка принята! Чат создан.', true);
-        // Обновляем бейдж
         updateRequestsBadge();
-        // Закрываем модалку
         requestsModal.classList.remove('show');
-        // Обновляем список чатов
         loadChatList();
-        // Получаем данные партнёра для открытия чата
         return db.ref('users/' + friendUid).once('value');
     })
     .then(snapshot => {
@@ -1427,6 +1533,7 @@ auth.onAuthStateChanged(user => {
 auth.onAuthStateChanged((user) => {
     if (user) {
         currentUser = user;
+        setUserStatus(user.uid, true);
         db.ref('users/' + user.uid).once('value')
             .then(snapshot => {
                 const data = snapshot.val();
@@ -1445,11 +1552,16 @@ auth.onAuthStateChanged((user) => {
                 showSetPassword(user);
             });
     } else {
+        if (currentUser) {
+            setUserStatus(currentUser.uid, false);
+        }
         authBox.style.display = 'flex';
         profileBox.style.display = 'none';
         chatBox.style.display = 'none';
         setPasswordBox.style.display = 'none';
         if (messagesListener) messagesListener.off();
+        if (statusListener) statusListener.off();
+        if (typingListener) typingListener.off();
         currentUser = null;
         currentUserProfile = null;
         if (peerConnection) {
@@ -1472,6 +1584,9 @@ auth.onAuthStateChanged((user) => {
 // 14. ВЫХОД
 // ============================================================
 logoutBtn.addEventListener('click', () => {
+    if (currentUser) {
+        setUserStatus(currentUser.uid, false);
+    }
     auth.signOut();
 });
 
