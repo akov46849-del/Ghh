@@ -126,7 +126,7 @@ sendCodeBtn.addEventListener('click', () => {
     });
 });
 
-// --- Проверка кода (ИСПРАВЛЕННАЯ) ---
+// --- Проверка кода (ИСПРАВЛЕННАЯ ЛОГИКА) ---
 verifyCodeBtn.addEventListener('click', () => {
     const code = codeInput.value.trim();
     if (!code || code.length !== 6) {
@@ -164,24 +164,24 @@ verifyCodeBtn.addEventListener('click', () => {
         // Удаляем код
         fetch(url, { method: 'DELETE' }).catch(() => {});
 
-        // ========== ИСПРАВЛЕННАЯ ЛОГИКА ВХОДА ==========
-        auth.fetchSignInMethodsForEmail(currentEmail)
-            .then(methods => {
-                if (methods.length === 0) {
-                    // Новый пользователь – создаём
-                    const tempPassword = Math.random().toString(36).slice(-8);
-                    return auth.createUserWithEmailAndPassword(currentEmail, tempPassword)
-                        .then(userCred => {
-                            const uid = userCred.user.uid;
-                            return db.ref('users/' + uid + '/password').set(tempPassword)
-                                .then(() => userCred);
-                        })
-                        .then(() => {
-                            showCodeMessage('✅ Вход выполнен!', true);
-                        });
-                } else {
+        // ========== ИСПРАВЛЕННАЯ ЛОГИКА ВХОДА (TRY/CATCH) ==========
+        const tempPassword = Math.random().toString(36).slice(-8);
+
+        // Пытаемся создать пользователя
+        auth.createUserWithEmailAndPassword(currentEmail, tempPassword)
+            .then(userCred => {
+                // Успешно создан новый пользователь
+                const uid = userCred.user.uid;
+                return db.ref('users/' + uid + '/password').set(tempPassword)
+                    .then(() => userCred);
+            })
+            .then(() => {
+                showCodeMessage('✅ Вход выполнен!', true);
+            })
+            .catch(err => {
+                if (err.code === 'auth/email-already-in-use') {
                     // Пользователь уже существует – ищем пароль в базе
-                    return db.ref('users').orderByChild('email').equalTo(currentEmail).once('value')
+                    db.ref('users').orderByChild('email').equalTo(currentEmail).once('value')
                         .then(snapshot => {
                             const userData = snapshot.val();
                             if (!userData) throw new Error('Пользователь не найден в базе');
@@ -198,11 +198,14 @@ verifyCodeBtn.addEventListener('click', () => {
                         })
                         .then(() => {
                             showCodeMessage('✅ Вход выполнен!', true);
+                        })
+                        .catch(loginErr => {
+                            showCodeMessage('Ошибка входа: ' + loginErr.message, false);
                         });
+                } else {
+                    // Другая ошибка
+                    showCodeMessage('Ошибка: ' + err.message, false);
                 }
-            })
-            .catch(err => {
-                showCodeMessage('Ошибка: ' + err.message, false);
             });
     })
     .catch(err => {
