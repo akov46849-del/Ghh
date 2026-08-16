@@ -636,7 +636,7 @@ deleteAccountBtn.addEventListener('click', () => {
 closeProfileBtn.addEventListener('click', closeProfile);
 
 // ============================================================
-// 7. ЧАТ
+// 7. ЧАТ (исправлен loadChatList и openChat)
 // ============================================================
 function showChat() {
     authBox.style.display = 'none';
@@ -676,8 +676,9 @@ function loadChatList() {
                 chatList.innerHTML = '<div style="color:rgba(255,255,255,0.3); padding:20px; text-align:center;">Нет чатов. Начните общение!</div>';
                 return;
             }
+            // Фильтруем чаты, где participants содержит текущего пользователя (объектная структура)
             const chats = Object.entries(data).filter(([id, chat]) => {
-                return chat.participants && chat.participants.includes(currentUser.uid);
+                return chat.participants && chat.participants[currentUser.uid] === true;
             });
             if (chats.length === 0) {
                 chatList.innerHTML = '<div style="color:rgba(255,255,255,0.3); padding:20px; text-align:center;">Нет чатов. Начните общение!</div>';
@@ -685,7 +686,7 @@ function loadChatList() {
             }
             chats.sort((a, b) => (b[1].lastTimestamp || 0) - (a[1].lastTimestamp || 0));
             chats.forEach(([chatId, chat]) => {
-                const partnerUid = chat.participants.find(uid => uid !== currentUser.uid);
+                const partnerUid = Object.keys(chat.participants).find(uid => uid !== currentUser.uid);
                 if (!partnerUid) return;
                 db.ref('users/' + partnerUid).once('value').then(snap => {
                     const partner = snap.val();
@@ -952,7 +953,7 @@ function sendFriendRequest(toUid) {
 }
 
 // ============================================================
-// 9. ЗАПРОСЫ (исправленная версия с логами)
+// 9. ЗАПРОСЫ (исправленные с объектной структурой participants)
 // ============================================================
 function updateRequestsBadge() {
     if (!currentUser) return;
@@ -1102,8 +1103,12 @@ function acceptRequest(key, friendUid) {
     console.log('✅ Принимаем заявку:', key, 'от пользователя:', friendUid);
     const chatId = [currentUser.uid, friendUid].sort().join('_');
     const chatRef = db.ref('chats/' + chatId);
+    // Используем объектную структуру для participants
+    const participants = {};
+    participants[currentUser.uid] = true;
+    participants[friendUid] = true;
     chatRef.set({
-        participants: [currentUser.uid, friendUid],
+        participants: participants,
         lastMessage: 'Начните общение!',
         lastTimestamp: Date.now()
     })
