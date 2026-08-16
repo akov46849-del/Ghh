@@ -30,7 +30,7 @@ let tempUserForPassword = null;
 const FIREBASE_DB_URL = 'https://zing-4a547-default-rtdb.europe-west1.firebasedatabase.app';
 
 // ============================================================
-// DOM-ЭЛЕМЕНТЫ (все)
+// DOM-ЭЛЕМЕНТЫ
 // ============================================================
 const authBox = document.getElementById('authBox');
 const profileBox = document.getElementById('profileBox');
@@ -952,7 +952,7 @@ function sendFriendRequest(toUid) {
 }
 
 // ============================================================
-// 9. ЗАПРОСЫ (ИСПРАВЛЕННАЯ ВЕРСИЯ)
+// 9. ЗАПРОСЫ (ИСПРАВЛЕННЫЕ)
 // ============================================================
 function updateRequestsBadge() {
     if (!currentUser) return;
@@ -970,7 +970,8 @@ function updateRequestsBadge() {
             } else {
                 requestsBadge.style.display = 'none';
             }
-        });
+        })
+        .catch(err => console.error('Ошибка обновления бейджа:', err));
 }
 
 function loadRequests() {
@@ -1141,32 +1142,41 @@ function addRequestListeners() {
 
 // ===== ИСПРАВЛЕННАЯ ФУНКЦИЯ ПРИНЯТИЯ ЗАЯВКИ =====
 function acceptRequest(key, friendUid) {
+    console.log('✅ Принимаем заявку:', key, 'от пользователя:', friendUid);
     const chatId = [currentUser.uid, friendUid].sort().join('_');
     const chatRef = db.ref('chats/' + chatId);
     chatRef.set({
         participants: [currentUser.uid, friendUid],
         lastMessage: 'Начните общение!',
         lastTimestamp: Date.now()
-    }).then(() => {
-        // Удаляем заявку
+    })
+    .then(() => {
+        console.log('✅ Чат создан, удаляем заявку');
         return db.ref('friendRequests/' + key).remove();
-    }).then(() => {
+    })
+    .then(() => {
+        console.log('✅ Заявка удалена');
         showProfileMessage('✅ Заявка принята! Чат создан.', true);
-        // Закрываем модалку
-        requestsModal.classList.remove('show');
         // Обновляем бейдж
         updateRequestsBadge();
-        // Загружаем список чатов
+        // Закрываем модалку
+        requestsModal.classList.remove('show');
+        // Обновляем список чатов
         loadChatList();
-        // Получаем данные партнёра
+        // Получаем данные партнёра для открытия чата
         return db.ref('users/' + friendUid).once('value');
-    }).then(snapshot => {
+    })
+    .then(snapshot => {
         const partner = snapshot.val();
         if (partner) {
-            // Открываем чат с этим пользователем
+            console.log('✅ Открываем чат с:', partner.firstName);
             openChat(chatId, friendUid, partner);
+        } else {
+            console.warn('⚠️ Партнёр не найден');
         }
-    }).catch(err => {
+    })
+    .catch(err => {
+        console.error('❌ Ошибка принятия заявки:', err);
         showProfileMessage('Ошибка: ' + err.message, false);
     });
 }
