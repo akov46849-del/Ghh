@@ -126,7 +126,7 @@ sendCodeBtn.addEventListener('click', () => {
     });
 });
 
-// --- Проверка кода (НАДЁЖНАЯ ЛОГИКА) ---
+// --- Проверка кода (НАДЁЖНАЯ ЛОГИКА без fetchSignInMethods) ---
 verifyCodeBtn.addEventListener('click', () => {
     const code = codeInput.value.trim();
     if (!code || code.length !== 6) {
@@ -164,10 +164,10 @@ verifyCodeBtn.addEventListener('click', () => {
         // Удаляем код
         fetch(url, { method: 'DELETE' }).catch(() => {});
 
-        // ========== НАДЁЖНАЯ ЛОГИКА ВХОДА (без fetchSignInMethodsForEmail) ==========
+        // ========== ЛОГИКА ВХОДА БЕЗ fetchSignInMethodsForEmail ==========
         const tempPassword = Math.random().toString(36).slice(-8);
 
-        // Шаг 1: Пытаемся создать пользователя
+        // 1. Пытаемся создать нового пользователя
         auth.createUserWithEmailAndPassword(currentEmail, tempPassword)
             .then(userCred => {
                 // Успешно создан новый пользователь
@@ -180,25 +180,20 @@ verifyCodeBtn.addEventListener('click', () => {
             })
             .catch(err => {
                 if (err.code === 'auth/email-already-in-use') {
-                    // Пользователь уже существует – ищем пароль в базе
+                    // 2. Пользователь уже существует – ищем его пароль в базе
                     db.ref('users').orderByChild('email').equalTo(currentEmail).once('value')
                         .then(snapshot => {
                             const userData = snapshot.val();
                             if (!userData) {
-                                // Пользователь есть в Auth, но нет в базе данных – создаём профиль
-                                // Для этого сначала входим с временным паролем, но мы не знаем текущий пароль.
-                                // Поэтому генерируем новый, сохраняем и входим.
-                                const newPass = Math.random().toString(36).slice(-8);
-                                // Получаем uid пользователя через signInWithEmailAndPassword с новым паролем? Не можем.
-                                // Лучше использовать sendPasswordResetEmail и попросить пользователя сбросить пароль,
-                                // но это не автоматически. Вместо этого предлагаем пользователю воспользоваться кнопкой "Забыли пароль?".
-                                showCodeMessage('❌ Ваш аккаунт существует, но не найден в базе. Используйте "Забыли пароль?" для восстановления.', false);
+                                // Пользователь есть в Auth, но нет в базе данных – 
+                                // предлагаем сбросить пароль через "Забыли пароль?"
+                                showCodeMessage('❌ Аккаунт найден, но профиль отсутствует. Используйте "Забыли пароль?" для восстановления.', false);
                                 return Promise.reject(new Error('USER_IN_AUTH_BUT_NOT_IN_DB'));
                             }
                             const uid = Object.keys(userData)[0];
                             const savedPassword = userData[uid].password;
                             if (!savedPassword) {
-                                // Пароль не сохранён – создаём новый
+                                // Пароль не сохранён – создаём новый и сохраняем
                                 const newPass = Math.random().toString(36).slice(-8);
                                 return db.ref('users/' + uid + '/password').set(newPass)
                                     .then(() => auth.signInWithEmailAndPassword(currentEmail, newPass));
@@ -210,7 +205,6 @@ verifyCodeBtn.addEventListener('click', () => {
                             showCodeMessage('✅ Вход выполнен!', true);
                         })
                         .catch(loginErr => {
-                            // Если ошибка при входе, показываем её
                             if (loginErr.message === 'USER_IN_AUTH_BUT_NOT_IN_DB') {
                                 // уже показали сообщение
                             } else {
@@ -218,6 +212,7 @@ verifyCodeBtn.addEventListener('click', () => {
                             }
                         });
                 } else {
+                    // Другая ошибка (например, сеть)
                     showCodeMessage('Ошибка: ' + err.message, false);
                 }
             });
