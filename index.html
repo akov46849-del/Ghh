@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ZING — вход по коду</title>
-    <!-- Firebase SDK (для авторизации и чата) -->
+    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -446,11 +446,12 @@
 
 <script>
     // ============================================================
-    // 1. КОНФИГ FIREBASE (ВАШ)
+    // КОНФИГ FIREBASE (С ПРАВИЛЬНЫМ databaseURL)
     // ============================================================
     const firebaseConfig = {
         apiKey: "AIzaSyBjJ0U5hcGDmxrWKKa0RvTK3d9q5FvgHIk",
         authDomain: "zing-4a547.firebaseapp.com",
+        databaseURL: "https://zing-4a547-default-rtdb.europe-west1.firebasedatabase.app", // <-- ИСПРАВЛЕНО
         projectId: "zing-4a547",
         storageBucket: "zing-4a547.firebasestorage.app",
         messagingSenderId: "1030163494482",
@@ -462,7 +463,7 @@
     const db = firebase.database();
 
     // ============================================================
-    // 2. DOM-ЭЛЕМЕНТЫ
+    // DOM-ЭЛЕМЕНТЫ
     // ============================================================
     const authBox = document.getElementById('authBox');
     const profileBox = document.getElementById('profileBox');
@@ -507,7 +508,7 @@
     const FIREBASE_DB_URL = 'https://zing-4a547-default-rtdb.europe-west1.firebasedatabase.app';
 
     // ============================================================
-    // 3. ОТПРАВКА КОДА (ЧЕРЕЗ REST API)
+    // ОТПРАВКА КОДА (ЧЕРЕЗ REST API)
     // ============================================================
     sendCodeBtn.addEventListener('click', () => {
         const email = emailInput.value.trim();
@@ -559,7 +560,7 @@
     });
 
     // ============================================================
-    // 4. ПРОВЕРКА КОДА (ЧЕРЕЗ REST API)
+    // ПРОВЕРКА КОДА (ЧЕРЕЗ REST API)
     // ============================================================
     verifyCodeBtn.addEventListener('click', () => {
         const code = codeInput.value.trim();
@@ -613,7 +614,7 @@
     });
 
     // ============================================================
-    // 5. ПОВТОРНАЯ ОТПРАВКА (REST)
+    // ПОВТОРНАЯ ОТПРАВКА (REST)
     // ============================================================
     resendCodeBtn.addEventListener('click', () => {
         const emailKey = currentEmail.replace(/\./g, '_');
@@ -645,7 +646,7 @@
     });
 
     // ============================================================
-    // 6. ПРОФИЛЬ (без изменений)
+    // ПРОФИЛЬ
     // ============================================================
     function showProfileForm() {
         authBox.style.display = 'none';
@@ -721,7 +722,7 @@
     }
 
     // ============================================================
-    // 7. ЧАТ
+    // ЧАТ
     // ============================================================
     function showChat() {
         authBox.style.display = 'none';
@@ -826,7 +827,7 @@
     });
 
     // ============================================================
-    // 8. ВЫХОД
+    // ВЫХОД
     // ============================================================
     function logout() {
         auth.signOut().then(() => {
@@ -856,7 +857,7 @@
     logoutBtn.addEventListener('click', logout);
 
     // ============================================================
-    // 9. СОСТОЯНИЕ АВТОРИЗАЦИИ
+    // СОСТОЯНИЕ АВТОРИЗАЦИИ
     // ============================================================
     auth.onAuthStateChanged((user) => {
         if (user) {
@@ -889,7 +890,7 @@
     });
 
     // ============================================================
-    // 10. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+    // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
     // ============================================================
     function showMessage(text, isSuccess = true) {
         messageBox.className = 'message show';
