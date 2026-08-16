@@ -26,10 +26,11 @@ let currentChatId = null;
 let currentChatPartnerUid = null;
 let messagesListener = null;
 let tempUserForPassword = null;
-let statusListener = null;
-let typingListener = null;
+let statusListener = null; // будет хранить функцию отмены
+let typingListener = null; // функция отмены
 let typingTimeout = null;
-let friendRequestsListener = null; // слушатель для заявок
+let friendRequestsListener = null;
+let chatListListener = null;
 
 const FIREBASE_DB_URL = 'https://zing-4a547-default-rtdb.europe-west1.firebasedatabase.app';
 
@@ -641,7 +642,7 @@ deleteAccountBtn.addEventListener('click', () => {
 closeProfileBtn.addEventListener('click', closeProfile);
 
 // ============================================================
-// 7. ЧАТ (с поддержкой статуса и печатания)
+// 7. ЧАТ (с поддержкой статуса и печатания, исправлены слушатели)
 // ============================================================
 function showChat() {
     authBox.style.display = 'none';
@@ -651,9 +652,7 @@ function showChat() {
     updateChatHeader();
     loadChatList();
     updateRequestsBadge();
-    // Подписываемся на новые заявки в реальном времени
     listenForFriendRequests();
-    // Устанавливаем статус текущего пользователя
     setUserStatus(currentUser.uid, true);
 }
 
@@ -683,10 +682,13 @@ function setUserStatus(uid, online) {
         .catch(err => console.error('Ошибка обновления статуса:', err));
 }
 
-// Слушаем статус собеседника
+// Слушаем статус собеседника (исправлено)
 function listenPartnerStatus(partnerUid) {
     if (statusListener) {
-        statusListener.off();
+        // Если statusListener – функция отмены, вызываем её
+        if (typeof statusListener === 'function') {
+            statusListener();
+        }
         statusListener = null;
     }
     const statusRef = db.ref('users/' + partnerUid + '/status');
@@ -724,10 +726,12 @@ function updatePartnerStatusUI(data) {
     }
 }
 
-// ===== Индикатор «печатает» =====
+// ===== Индикатор «печатает» (исправлено) =====
 function listenTyping(chatId) {
     if (typingListener) {
-        typingListener.off();
+        if (typeof typingListener === 'function') {
+            typingListener();
+        }
         typingListener = null;
     }
     const typingRef = db.ref('chats/' + chatId + '/typing');
@@ -759,11 +763,14 @@ function setTyping(chatId, isTyping) {
 
 // ===== Загрузка списка чатов =====
 function loadChatList() {
+    if (chatListListener) {
+        if (typeof chatListListener === 'function') {
+            chatListListener();
+        }
+        chatListListener = null;
+    }
     const chatsRef = db.ref('chats');
-    chatsRef.off();
-    chatList.innerHTML = '<div style="color:rgba(255,255,255,0.3); padding:20px; text-align:center;">Загрузка...</div>';
-
-    chatsRef.on('value', (snapshot) => {
+    chatListListener = chatsRef.on('value', (snapshot) => {
         const data = snapshot.val();
         chatList.innerHTML = '';
         if (!data) {
@@ -826,14 +833,11 @@ function openChat(chatId, partnerUid, partnerData) {
     callBtn.style.display = 'inline-block';
     callBtn.onclick = () => startCall(partnerUid, partnerData.firstName);
 
-    // Слушаем статус собеседника
     listenPartnerStatus(partnerUid);
-    // Слушаем печатание
     listenTyping(chatId);
 
     loadMessages(chatId);
 
-    // Обработчик ввода текста для отправки сигнала "печатает"
     messageInput.addEventListener('input', function() {
         if (currentChatId) {
             setTyping(currentChatId, true);
@@ -1000,9 +1004,16 @@ backToChatList.addEventListener('click', () => {
     currentChatId = null;
     currentChatPartnerUid = null;
     callBtn.style.display = 'none';
-    if (typingListener) typingListener.off();
-    if (statusListener) statusListener.off();
-    // Принудительно обновляем список чатов
+    // Снимаем слушатели статуса и печатания
+    if (statusListener) {
+        if (typeof statusListener === 'function') statusListener();
+        statusListener = null;
+    }
+    if (typingListener) {
+        if (typeof typingListener === 'function') typingListener();
+        typingListener = null;
+    }
+    // Принудительно обновляем список чатов (он и так обновляется через слушатель, но на всякий случай)
     loadChatList();
 });
 
@@ -1097,10 +1108,10 @@ function updateRequestsBadge() {
         .catch(err => console.error('Ошибка обновления бейджа:', err));
 }
 
-// Слушатель для новых входящих заявок (обновляет бейдж в реальном времени)
+// Слушатель для новых входящих заявок
 function listenForFriendRequests() {
     if (friendRequestsListener) {
-        friendRequestsListener.off();
+        if (typeof friendRequestsListener === 'function') friendRequestsListener();
         friendRequestsListener = null;
     }
     if (!currentUser) return;
@@ -1108,9 +1119,7 @@ function listenForFriendRequests() {
     friendRequestsListener = requestsRef.on('child_added', (snapshot) => {
         const request = snapshot.val();
         if (request && request.status === 'pending') {
-            // Обновляем бейдж
             updateRequestsBadge();
-            // Если модалка заявок открыта, обновляем список
             if (requestsModal.classList.contains('show')) {
                 loadRequests();
             }
@@ -1258,6 +1267,7 @@ function acceptRequest(key, friendUid) {
         showProfileMessage('✅ Заявка принята! Чат создан.', true);
         updateRequestsBadge();
         requestsModal.classList.remove('show');
+        // Обновляем список чатов
         loadChatList();
         return db.ref('users/' + friendUid).once('value');
     })
@@ -1587,9 +1597,11 @@ auth.onAuthStateChanged((user) => {
         chatBox.style.display = 'none';
         setPasswordBox.style.display = 'none';
         if (messagesListener) messagesListener.off();
-        if (statusListener) statusListener.off();
-        if (typingListener) typingListener.off();
-        if (friendRequestsListener) friendRequestsListener.off();
+        // Отписываемся от всех слушателей
+        if (statusListener) { if (typeof statusListener === 'function') statusListener(); statusListener = null; }
+        if (typingListener) { if (typeof typingListener === 'function') typingListener(); typingListener = null; }
+        if (friendRequestsListener) { if (typeof friendRequestsListener === 'function') friendRequestsListener(); friendRequestsListener = null; }
+        if (chatListListener) { if (typeof chatListListener === 'function') chatListListener(); chatListListener = null; }
         currentUser = null;
         currentUserProfile = null;
         if (peerConnection) {
