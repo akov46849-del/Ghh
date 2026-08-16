@@ -30,7 +30,7 @@ let tempUserForPassword = null;
 const FIREBASE_DB_URL = 'https://zing-4a547-default-rtdb.europe-west1.firebasedatabase.app';
 
 // ============================================================
-// DOM-ЭЛЕМЕНТЫ
+// DOM-ЭЛЕМЕНТЫ (все)
 // ============================================================
 const authBox = document.getElementById('authBox');
 const profileBox = document.getElementById('profileBox');
@@ -106,7 +106,6 @@ const passwordModalCode = document.getElementById('passwordModalCode');
 const passwordModalConfirm = document.getElementById('passwordModalConfirm');
 const passwordModalResult = document.getElementById('passwordModalResult');
 
-// Элементы звонков
 const callBtn = document.getElementById('callBtn');
 const incomingCallModal = document.getElementById('incomingCallModal');
 const incomingCaller = document.getElementById('incomingCaller');
@@ -131,7 +130,7 @@ document.querySelectorAll('.auth-tabs button').forEach(btn => {
 });
 
 // ============================================================
-// 2. ВХОД ПО ПАРОЛЮ
+// 2. ВХОД ПО ПАРОЛЮ (исправлен с логами)
 // ============================================================
 loginPasswordBtn.addEventListener('click', () => {
     const email = loginEmail.value.trim();
@@ -145,6 +144,8 @@ loginPasswordBtn.addEventListener('click', () => {
 
     auth.signInWithEmailAndPassword(email, pass)
         .then(userCred => {
+            console.log('✅ Вход успешен, uid:', userCred.user.uid);
+            // Проверяем 2FA
             const uid = userCred.user.uid;
             return db.ref('users/' + uid + '/twoFactorEnabled').once('value')
                 .then(snapshot => {
@@ -174,6 +175,7 @@ loginPasswordBtn.addEventListener('click', () => {
                 });
         })
         .catch(err => {
+            console.error('❌ Ошибка входа:', err);
             showLoginMessage('Ошибка: ' + err.message, false);
         })
         .finally(() => {
@@ -198,7 +200,7 @@ resetPasswordBtn.addEventListener('click', () => {
 });
 
 // ============================================================
-// 3. ВХОД ПО КОДУ
+// 3. ВХОД ПО КОДУ (без изменений)
 // ============================================================
 sendCodeLoginBtn.addEventListener('click', () => {
     const email = codeLoginEmail.value.trim();
@@ -271,7 +273,7 @@ verifyCodeLoginBtn.addEventListener('click', () => {
 });
 
 // ============================================================
-// 4. РЕГИСТРАЦИЯ
+// 4. РЕГИСТРАЦИЯ (без изменений)
 // ============================================================
 sendCodeRegisterBtn.addEventListener('click', () => {
     const email = registerEmail.value.trim();
@@ -339,7 +341,7 @@ verifyRegisterBtn.addEventListener('click', () => {
 });
 
 // ============================================================
-// 5. УСТАНОВКА ПАРОЛЯ
+// 5. УСТАНОВКА ПАРОЛЯ (без изменений)
 // ============================================================
 function showSetPassword(user) {
     authBox.style.display = 'none';
@@ -428,7 +430,7 @@ setPasswordBtn.addEventListener('click', () => {
 });
 
 // ============================================================
-// 6. ПРОФИЛЬ
+// 6. ПРОФИЛЬ (без изменений)
 // ============================================================
 function openProfile() {
     chatBox.style.display = 'none';
@@ -631,7 +633,7 @@ deleteAccountBtn.addEventListener('click', () => {
 closeProfileBtn.addEventListener('click', closeProfile);
 
 // ============================================================
-// 7. ЧАТ
+// 7. ЧАТ (исправлен поиск пользователей)
 // ============================================================
 function showChat() {
     authBox.style.display = 'none';
@@ -878,7 +880,7 @@ backToChatList.addEventListener('click', () => {
 });
 
 // ============================================================
-// 8. ПОИСК И ЗАЯВКИ
+// 8. ПОИСК И ЗАЯВКИ (исправлен с обработкой ошибок)
 // ============================================================
 searchBtn.addEventListener('click', () => {
     const query = searchInput.value.trim().toLowerCase();
@@ -893,6 +895,7 @@ searchBtn.addEventListener('click', () => {
                 searchResults.innerHTML = '<div style="color:rgba(255,255,255,0.5); padding:10px;">Ничего не найдено</div>';
                 return;
             }
+            // Отображаем найденных пользователей
             Object.entries(results).forEach(([uid, user]) => {
                 if (uid === currentUser.uid) return;
                 const isBlocked = (currentUserProfile.blocked || []).includes(uid);
@@ -910,6 +913,11 @@ searchBtn.addEventListener('click', () => {
                 }
                 searchResults.appendChild(div);
             });
+        })
+        .catch(err => {
+            console.error('❌ Ошибка поиска:', err);
+            searchResults.style.display = 'block';
+            searchResults.innerHTML = '<div style="color:red; padding:10px;">Ошибка поиска: ' + err.message + '</div>';
         });
 });
 
@@ -1196,6 +1204,7 @@ auth.onAuthStateChanged((user) => {
                         showChat();
                     }
                 } else {
+                    // Профиль не найден – предлагаем создать
                     showSetPassword(user);
                 }
             })
@@ -1235,3 +1244,8 @@ logoutBtn.addEventListener('click', () => {
 });
 
 settingsBtn.addEventListener('click', openProfile);
+
+// ============================================================
+// 14. ЗАПУСК (проверка консоли)
+// ============================================================
+console.log('✅ ZING app.js загружен и готов к работе!');
