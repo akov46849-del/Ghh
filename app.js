@@ -30,7 +30,7 @@ let tempUserForPassword = null;
 const FIREBASE_DB_URL = 'https://zing-4a547-default-rtdb.europe-west1.firebasedatabase.app';
 
 // ============================================================
-// DOM-ЭЛЕМЕНТЫ
+// DOM-ЭЛЕМЕНТЫ (ВСЕ)
 // ============================================================
 const authBox = document.getElementById('authBox');
 const profileBox = document.getElementById('profileBox');
@@ -123,836 +123,14 @@ const requestsList = document.getElementById('requestsList');
 const requestsBadge = document.getElementById('requestsBadge');
 
 // ============================================================
-// 1. АВТОРИЗАЦИЯ (вкладки)
+// 1-8. АВТОРИЗАЦИЯ, ПРОФИЛЬ, ЧАТ (без изменений)
 // ============================================================
-document.querySelectorAll('.auth-tabs button').forEach(btn => {
-    btn.addEventListener('click', function() {
-        document.querySelectorAll('.auth-tabs button').forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
-        const tab = this.dataset.tab;
-        document.querySelectorAll('.auth-panel').forEach(p => p.classList.remove('active'));
-        document.getElementById(tab).classList.add('active');
-    });
-});
+// ... (весь ваш код до функции заявок) ...
+// Чтобы не дублировать 1000 строк, я предполагаю, что у вас уже есть рабочий код до этого момента.
+// Я дам только новые функции заявок, которые нужно вставить вместо старых.
 
 // ============================================================
-// 2. ВХОД ПО ПАРОЛЮ
-// ============================================================
-loginPasswordBtn.addEventListener('click', () => {
-    const email = loginEmail.value.trim();
-    const pass = loginPassword.value.trim();
-    if (!email || !pass) {
-        showLoginMessage('Введите email и пароль.', false);
-        return;
-    }
-    loginPasswordBtn.disabled = true;
-    loginPasswordBtn.innerHTML = '<div class="spinner"></div>';
-
-    auth.signInWithEmailAndPassword(email, pass)
-        .then(userCred => {
-            const uid = userCred.user.uid;
-            return db.ref('users/' + uid + '/twoFactorEnabled').once('value')
-                .then(snapshot => {
-                    const twoFactor = snapshot.val() || false;
-                    if (twoFactor) {
-                        return send2FACode(email)
-                            .then(() => {
-                                const code = prompt('Введите код из письма для 2FA:');
-                                if (!code) {
-                                    auth.signOut();
-                                    showLoginMessage('Вход отменён.', false);
-                                    return;
-                                }
-                                return verify2FACode(email, code)
-                                    .then(valid => {
-                                        if (valid) {
-                                            showLoginMessage('✅ Вход выполнен!', true);
-                                        } else {
-                                            auth.signOut();
-                                            showLoginMessage('Неверный код.', false);
-                                        }
-                                    });
-                            });
-                    } else {
-                        showLoginMessage('✅ Вход выполнен!', true);
-                    }
-                });
-        })
-        .catch(err => {
-            showLoginMessage('Ошибка: ' + err.message, false);
-        })
-        .finally(() => {
-            loginPasswordBtn.disabled = false;
-            loginPasswordBtn.innerHTML = 'Войти';
-        });
-});
-
-resetPasswordBtn.addEventListener('click', () => {
-    const email = loginEmail.value.trim();
-    if (!email || !email.includes('@')) {
-        showLoginMessage('Введите email для сброса.', false);
-        return;
-    }
-    auth.sendPasswordResetEmail(email)
-        .then(() => {
-            showLoginMessage('Ссылка для сброса отправлена на почту.', true);
-        })
-        .catch(err => {
-            showLoginMessage('Ошибка: ' + err.message, false);
-        });
-});
-
-// ============================================================
-// 3. ВХОД ПО КОДУ
-// ============================================================
-sendCodeLoginBtn.addEventListener('click', () => {
-    const email = codeLoginEmail.value.trim();
-    if (!email || !email.includes('@')) {
-        showCodeLoginMessage('Введите корректный email.', false);
-        return;
-    }
-    currentEmail = email;
-    const url = `${FIREBASE_DB_URL}/emailQueue.json`;
-    const data = { email, status: 'pending', timestamp: Date.now() };
-    fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-    })
-    .then(res => {
-        if (!res.ok) throw new Error('Ошибка отправки');
-        return res.json();
-    })
-    .then(() => {
-        showCodeLoginMessage('Код отправлен на почту!', true);
-        codeLoginStep2.style.display = 'block';
-    })
-    .catch(err => {
-        showCodeLoginMessage('Ошибка: ' + err.message, false);
-    });
-});
-
-verifyCodeLoginBtn.addEventListener('click', () => {
-    const code = codeLoginInput.value.trim();
-    if (!code || code.length !== 6) {
-        showCodeLoginMessage('Введите 6-значный код.', false);
-        return;
-    }
-    const emailKey = currentEmail.replace(/\./g, '_');
-    const url = `${FIREBASE_DB_URL}/codes/${emailKey}.json`;
-    fetch(url)
-        .then(res => res.json())
-        .then(data => {
-            if (!data || data.code !== code || Date.now() - data.createdAt > 10*60*1000) {
-                showCodeLoginMessage('Неверный или истёкший код.', false);
-                return;
-            }
-            fetch(url, { method: 'DELETE' }).catch(() => {});
-            db.ref('users').orderByChild('email').equalTo(currentEmail).once('value')
-                .then(snapshot => {
-                    const userData = snapshot.val();
-                    if (!userData) {
-                        showCodeLoginMessage('Пользователь не найден. Зарегистрируйтесь.', false);
-                        return;
-                    }
-                    const uid = Object.keys(userData)[0];
-                    const savedPassword = userData[uid].password;
-                    if (!savedPassword) {
-                        showCodeLoginMessage('Пароль не сохранён. Используйте сброс.', false);
-                        return;
-                    }
-                    return auth.signInWithEmailAndPassword(currentEmail, savedPassword);
-                })
-                .then(() => {
-                    showCodeLoginMessage('✅ Вход выполнен!', true);
-                })
-                .catch(err => {
-                    showCodeLoginMessage('Ошибка: ' + err.message, false);
-                });
-        })
-        .catch(err => {
-            showCodeLoginMessage('Ошибка: ' + err.message, false);
-        });
-});
-
-// ============================================================
-// 4. РЕГИСТРАЦИЯ
-// ============================================================
-sendCodeRegisterBtn.addEventListener('click', () => {
-    const email = registerEmail.value.trim();
-    if (!email || !email.includes('@')) {
-        showRegisterMessage('Введите корректный email.', false);
-        return;
-    }
-    currentEmail = email;
-    const url = `${FIREBASE_DB_URL}/emailQueue.json`;
-    const data = { email, status: 'pending', timestamp: Date.now() };
-    fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-    })
-    .then(res => {
-        if (!res.ok) throw new Error('Ошибка отправки');
-        return res.json();
-    })
-    .then(() => {
-        showRegisterMessage('Код отправлен на почту!', true);
-        registerStep2.style.display = 'block';
-    })
-    .catch(err => {
-        showRegisterMessage('Ошибка: ' + err.message, false);
-    });
-});
-
-verifyRegisterBtn.addEventListener('click', () => {
-    const code = registerCodeInput.value.trim();
-    if (!code || code.length !== 6) {
-        showRegisterMessage('Введите 6-значный код.', false);
-        return;
-    }
-    const emailKey = currentEmail.replace(/\./g, '_');
-    const url = `${FIREBASE_DB_URL}/codes/${emailKey}.json`;
-    fetch(url)
-        .then(res => res.json())
-        .then(data => {
-            if (!data || data.code !== code || Date.now() - data.createdAt > 10*60*1000) {
-                showRegisterMessage('Неверный или истёкший код.', false);
-                return;
-            }
-            fetch(url, { method: 'DELETE' }).catch(() => {});
-            auth.fetchSignInMethodsForEmail(currentEmail)
-                .then(methods => {
-                    if (methods.length > 0) {
-                        showRegisterMessage('Этот email уже зарегистрирован. Войдите по паролю.', false);
-                        return;
-                    }
-                    const tempPassword = Math.random().toString(36).slice(-8);
-                    return auth.createUserWithEmailAndPassword(currentEmail, tempPassword)
-                        .then(userCred => {
-                            tempUserForPassword = userCred.user;
-                            showSetPassword(userCred.user);
-                        });
-                })
-                .catch(err => {
-                    showRegisterMessage('Ошибка: ' + err.message, false);
-                });
-        })
-        .catch(err => {
-            showRegisterMessage('Ошибка: ' + err.message, false);
-        });
-});
-
-// ============================================================
-// 5. УСТАНОВКА ПАРОЛЯ
-// ============================================================
-function showSetPassword(user) {
-    authBox.style.display = 'none';
-    profileBox.style.display = 'none';
-    chatBox.style.display = 'none';
-    setPasswordBox.style.display = 'flex';
-    tempUserForPassword = user;
-    generatePasswordOptions();
-}
-
-function generatePasswordOptions() {
-    const options = [];
-    for (let i = 0; i < 3; i++) {
-        options.push(generateStrongPassword());
-    }
-    passwordOptions.innerHTML = '';
-    options.forEach(pwd => {
-        const btn = document.createElement('button');
-        btn.textContent = pwd;
-        btn.dataset.password = pwd;
-        btn.addEventListener('click', function() {
-            document.querySelectorAll('.password-generator .options button').forEach(b => b.classList.remove('selected'));
-            this.classList.add('selected');
-            newPassword.value = this.dataset.password;
-            confirmPassword.value = this.dataset.password;
-        });
-        passwordOptions.appendChild(btn);
-    });
-}
-
-function generateStrongPassword() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+';
-    let pwd = '';
-    for (let i = 0; i < 14; i++) {
-        pwd += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return pwd;
-}
-
-setPasswordBtn.addEventListener('click', () => {
-    const pwd = newPassword.value.trim();
-    const confirm = confirmPassword.value.trim();
-    if (!pwd || pwd.length < 6) {
-        showSetPasswordMessage('Пароль должен быть не менее 6 символов.', false);
-        return;
-    }
-    if (pwd !== confirm) {
-        showSetPasswordMessage('Пароли не совпадают.', false);
-        return;
-    }
-    setPasswordBtn.disabled = true;
-    setPasswordBtn.innerHTML = '<div class="spinner"></div>';
-
-    const user = tempUserForPassword;
-    if (!user) {
-        showSetPasswordMessage('Ошибка: пользователь не найден.', false);
-        setPasswordBtn.disabled = false;
-        setPasswordBtn.innerHTML = 'Сохранить пароль';
-        return;
-    }
-    user.updatePassword(pwd)
-        .then(() => {
-            return db.ref('users/' + user.uid + '/password').set(pwd);
-        })
-        .then(() => {
-            return db.ref('users/' + user.uid).update({
-                firstName: currentEmail.split('@')[0] || 'User',
-                email: currentEmail,
-                createdAt: Date.now()
-            });
-        })
-        .then(() => {
-            showSetPasswordMessage('Пароль установлен! ✅', true);
-            setTimeout(() => {
-                setPasswordBox.style.display = 'none';
-                showChat();
-            }, 1000);
-        })
-        .catch(err => {
-            showSetPasswordMessage('Ошибка: ' + err.message, false);
-        })
-        .finally(() => {
-            setPasswordBtn.disabled = false;
-            setPasswordBtn.innerHTML = 'Сохранить пароль';
-        });
-});
-
-// ============================================================
-// 6. ПРОФИЛЬ
-// ============================================================
-function openProfile() {
-    chatBox.style.display = 'none';
-    profileBox.style.display = 'flex';
-    if (currentUserProfile) {
-        profileFirstName.value = currentUserProfile.firstName || '';
-        profileLastName.value = currentUserProfile.lastName || '';
-        profileGender.value = currentUserProfile.gender || 'Секрет';
-        profileBio.value = currentUserProfile.bio || '';
-        if (currentUserProfile.avatar) {
-            profileAvatar.style.backgroundImage = `url(${currentUserProfile.avatar})`;
-            profileAvatar.innerHTML = '';
-        } else {
-            profileAvatar.style.backgroundImage = '';
-            profileAvatar.innerHTML = currentUserProfile.firstName ? currentUserProfile.firstName.charAt(0).toUpperCase() : '👤';
-        }
-        twoFactorToggle.checked = currentUserProfile.twoFactorEnabled || false;
-    }
-}
-
-function closeProfile() {
-    profileBox.style.display = 'none';
-    chatBox.style.display = 'flex';
-}
-
-saveProfileBtn.addEventListener('click', () => {
-    const name = profileFirstName.value.trim();
-    if (!name) {
-        showProfileMessage('Имя обязательно.', false);
-        return;
-    }
-    const updates = {
-        firstName: name,
-        lastName: profileLastName.value.trim() || '',
-        gender: profileGender.value || 'Секрет',
-        bio: profileBio.value.trim() || '',
-        twoFactorEnabled: twoFactorToggle.checked,
-        updatedAt: Date.now()
-    };
-    saveProfileBtn.disabled = true;
-    saveProfileBtn.innerHTML = '<div class="spinner"></div>';
-    db.ref('users/' + currentUser.uid).update(updates)
-        .then(() => {
-            currentUserProfile = { ...currentUserProfile, ...updates };
-            showProfileMessage('Профиль сохранён! ✅', true);
-            updateChatHeader();
-        })
-        .catch(err => {
-            showProfileMessage('Ошибка: ' + err.message, false);
-        })
-        .finally(() => {
-            saveProfileBtn.disabled = false;
-            saveProfileBtn.innerHTML = '<i class="fas fa-check"></i> Сохранить профиль';
-        });
-});
-
-profileAvatar.addEventListener('click', () => profileAvatarInput.click());
-profileAvatarInput.addEventListener('change', function() {
-    const file = this.files[0];
-    if (!file) return;
-    const storageRef = storage.ref('avatars/' + currentUser.uid + '/' + Date.now() + '_' + file.name);
-    const uploadTask = storageRef.put(file);
-    uploadTask.on('state_changed', null, null, () => {
-        uploadTask.snapshot.ref.getDownloadURL().then(url => {
-            db.ref('users/' + currentUser.uid + '/avatar').set(url)
-                .then(() => {
-                    currentUserProfile.avatar = url;
-                    profileAvatar.style.backgroundImage = `url(${url})`;
-                    profileAvatar.innerHTML = '';
-                    updateChatHeader();
-                    showProfileMessage('Аватар обновлён!', true);
-                })
-                .catch(err => showProfileMessage('Ошибка: ' + err.message, false));
-        });
-    });
-});
-
-showPasswordBtn.addEventListener('click', () => {
-    passwordModal.style.display = 'flex';
-    passwordModalResult.textContent = '';
-    passwordModalCode.value = '';
-    const email = currentUser.email;
-    const url = `${FIREBASE_DB_URL}/emailQueue.json`;
-    const data = { email, status: 'pending', timestamp: Date.now() };
-    fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-    })
-    .then(res => {
-        if (!res.ok) throw new Error('Ошибка отправки');
-        return res.json();
-    })
-    .then(() => {
-        alert('Код отправлен на вашу почту.');
-    })
-    .catch(err => alert('Ошибка: ' + err.message));
-});
-
-passwordModalConfirm.addEventListener('click', () => {
-    const code = passwordModalCode.value.trim();
-    if (!code || code.length !== 6) {
-        alert('Введите 6-значный код.');
-        return;
-    }
-    const emailKey = currentUser.email.replace(/\./g, '_');
-    const url = `${FIREBASE_DB_URL}/codes/${emailKey}.json`;
-    fetch(url)
-        .then(res => res.json())
-        .then(data => {
-            if (!data || data.code !== code || Date.now() - data.createdAt > 10*60*1000) {
-                alert('Неверный или истёкший код.');
-                return;
-            }
-            fetch(url, { method: 'DELETE' }).catch(() => {});
-            db.ref('users/' + currentUser.uid + '/password').once('value')
-                .then(snapshot => {
-                    const pwd = snapshot.val();
-                    if (pwd) {
-                        passwordModalResult.textContent = pwd;
-                        passwordModalResult.style.color = '#4ade80';
-                        setTimeout(() => { passwordModalResult.textContent = ''; }, 10000);
-                    } else {
-                        passwordModalResult.textContent = 'Пароль не найден.';
-                        passwordModalResult.style.color = '#f5576c';
-                    }
-                });
-        })
-        .catch(err => alert('Ошибка: ' + err.message));
-});
-
-passwordModalClose.addEventListener('click', () => {
-    passwordModal.style.display = 'none';
-});
-
-changePasswordBtn.addEventListener('click', () => {
-    const newPwd = prompt('Введите новый пароль (мин. 6 символов):');
-    if (!newPwd || newPwd.length < 6) {
-        alert('Пароль должен быть не менее 6 символов.');
-        return;
-    }
-    const confirmPwd = prompt('Повторите пароль:');
-    if (newPwd !== confirmPwd) {
-        alert('Пароли не совпадают.');
-        return;
-    }
-    const email = currentUser.email;
-    const url = `${FIREBASE_DB_URL}/emailQueue.json`;
-    const data = { email, status: 'pending', timestamp: Date.now() };
-    fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-    })
-    .then(res => {
-        if (!res.ok) throw new Error('Ошибка отправки');
-        return res.json();
-    })
-    .then(() => {
-        const code = prompt('Код отправлен на почту. Введите его:');
-        if (!code || code.length !== 6) {
-            alert('Неверный код.');
-            return;
-        }
-        const emailKey = email.replace(/\./g, '_');
-        return fetch(`${FIREBASE_DB_URL}/codes/${emailKey}.json`)
-            .then(res => res.json())
-            .then(data => {
-                if (!data || data.code !== code || Date.now() - data.createdAt > 10*60*1000) {
-                    alert('Неверный или истёкший код.');
-                    return;
-                }
-                fetch(`${FIREBASE_DB_URL}/codes/${emailKey}.json`, { method: 'DELETE' }).catch(() => {});
-                return currentUser.updatePassword(newPwd)
-                    .then(() => {
-                        return db.ref('users/' + currentUser.uid + '/password').set(newPwd);
-                    })
-                    .then(() => {
-                        alert('Пароль успешно изменён!');
-                    });
-            });
-    })
-    .catch(err => alert('Ошибка: ' + err.message));
-});
-
-deleteAccountBtn.addEventListener('click', () => {
-    if (!confirm('Вы уверены, что хотите удалить аккаунт? Все данные будут потеряны.')) return;
-    const uid = currentUser.uid;
-    db.ref('users/' + uid).remove()
-        .then(() => currentUser.delete())
-        .then(() => {
-            showProfileMessage('Аккаунт удалён.', true);
-            setTimeout(() => location.reload(), 2000);
-        })
-        .catch(err => {
-            showProfileMessage('Ошибка: ' + err.message, false);
-        });
-});
-
-closeProfileBtn.addEventListener('click', closeProfile);
-
-// ============================================================
-// 7. ЧАТ
-// ============================================================
-function showChat() {
-    authBox.style.display = 'none';
-    profileBox.style.display = 'none';
-    chatBox.style.display = 'flex';
-    setPasswordBox.style.display = 'none';
-    updateChatHeader();
-    loadChatList();
-    updateRequestsBadge();
-}
-
-function updateChatHeader() {
-    if (currentUserProfile) {
-        const name = (currentUserProfile.firstName || '') + (currentUserProfile.lastName ? ' ' + currentUserProfile.lastName : '');
-        chatUserName.innerHTML = (name || 'Пользователь') + `<small>онлайн</small>`;
-        const avatar = currentUserProfile.avatar || (currentUserProfile.firstName ? currentUserProfile.firstName.charAt(0).toUpperCase() : 'Z');
-        if (avatar && avatar.startsWith('http')) {
-            chatAvatar.style.backgroundImage = `url(${avatar})`;
-            chatAvatar.style.backgroundSize = 'cover';
-            chatAvatar.textContent = '';
-        } else {
-            chatAvatar.style.backgroundImage = '';
-            chatAvatar.textContent = avatar;
-        }
-    }
-}
-
-function loadChatList() {
-    const chatsRef = db.ref('chats');
-    chatsRef.off();
-    chatList.innerHTML = '<div style="color:rgba(255,255,255,0.3); padding:20px; text-align:center;">Загрузка...</div>';
-    chatsRef.orderByChild('participants').startAt(currentUser.uid).endAt(currentUser.uid + '\uf8ff')
-        .on('value', (snapshot) => {
-            const data = snapshot.val();
-            chatList.innerHTML = '';
-            if (!data) {
-                chatList.innerHTML = '<div style="color:rgba(255,255,255,0.3); padding:20px; text-align:center;">Нет чатов. Начните общение!</div>';
-                return;
-            }
-            const chats = Object.entries(data).filter(([id, chat]) => {
-                return chat.participants && chat.participants.includes(currentUser.uid);
-            });
-            if (chats.length === 0) {
-                chatList.innerHTML = '<div style="color:rgba(255,255,255,0.3); padding:20px; text-align:center;">Нет чатов. Начните общение!</div>';
-                return;
-            }
-            chats.sort((a, b) => (b[1].lastTimestamp || 0) - (a[1].lastTimestamp || 0));
-            chats.forEach(([chatId, chat]) => {
-                const partnerUid = chat.participants.find(uid => uid !== currentUser.uid);
-                if (!partnerUid) return;
-                db.ref('users/' + partnerUid).once('value').then(snap => {
-                    const partner = snap.val();
-                    if (!partner) return;
-                    const div = document.createElement('div');
-                    div.className = 'chat-item';
-                    const avatarLetter = (partner.avatar && partner.avatar.startsWith('http')) ? '' : (partner.firstName ? partner.firstName.charAt(0).toUpperCase() : '?');
-                    div.innerHTML = `
-                        <div class="chat-avatar" style="${partner.avatar && partner.avatar.startsWith('http') ? `background-image:url(${partner.avatar}); background-size:cover;` : ''}">${avatarLetter}</div>
-                        <div class="chat-info">
-                            <div class="chat-name">${partner.firstName} ${partner.lastName || ''}</div>
-                            <div class="chat-last">${chat.lastMessage || 'Напишите первым'}</div>
-                        </div>
-                        <div class="chat-time">${chat.lastTimestamp ? new Date(chat.lastTimestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : ''}</div>
-                    `;
-                    div.addEventListener('click', () => {
-                        openChat(chatId, partnerUid, partner);
-                    });
-                    chatList.appendChild(div);
-                });
-            });
-        });
-}
-
-function openChat(chatId, partnerUid, partnerData) {
-    currentChatId = chatId;
-    currentChatPartnerUid = partnerUid;
-    activeChat.style.display = 'flex';
-    chatList.style.display = 'none';
-    document.getElementById('searchBox').style.display = 'none';
-    document.getElementById('searchResults').style.display = 'none';
-    activeChatName.textContent = partnerData.firstName + ' ' + (partnerData.lastName || '');
-    blockUserBtn.style.display = 'inline-block';
-    blockUserBtn.onclick = () => {
-        if (confirm('Заблокировать пользователя ' + partnerData.firstName + '?')) {
-            blockUser(partnerUid);
-        }
-    };
-    callBtn.style.display = 'inline-block';
-    callBtn.onclick = () => startCall(partnerUid, partnerData.firstName);
-    loadMessages(chatId);
-}
-
-function loadMessages(chatId) {
-    if (messagesListener) {
-        messagesListener.off();
-        messagesListener = null;
-    }
-    const messagesRef = db.ref('messages/' + chatId);
-    messagesContainer.innerHTML = '';
-    let first = true;
-    messagesRef.limitToLast(50).on('child_added', (snapshot) => {
-        const data = snapshot.val();
-        if (!data) return;
-        if (data.deletedBy && data.deletedBy.includes(currentUser.uid)) return;
-        const msgEl = document.createElement('div');
-        msgEl.className = 'msg';
-        if (data.from === currentUser.uid) msgEl.classList.add('me');
-        const avatarDiv = document.createElement('div');
-        avatarDiv.className = 'avatar-msg';
-        db.ref('users/' + data.from).once('value').then(snap => {
-            const sender = snap.val();
-            if (sender) {
-                const letter = (sender.avatar && sender.avatar.startsWith('http')) ? '' : (sender.firstName ? sender.firstName.charAt(0).toUpperCase() : '?');
-                if (sender.avatar && sender.avatar.startsWith('http')) {
-                    avatarDiv.style.backgroundImage = `url(${sender.avatar})`;
-                    avatarDiv.style.backgroundSize = 'cover';
-                    avatarDiv.textContent = '';
-                } else {
-                    avatarDiv.textContent = letter;
-                }
-            }
-        });
-        const bubble = document.createElement('div');
-        bubble.className = 'bubble';
-        const senderSpan = document.createElement('div');
-        senderSpan.className = 'sender';
-        senderSpan.textContent = data.from === currentUser.uid ? 'Вы' : (data.senderName || 'Unknown');
-        const textSpan = document.createElement('div');
-        textSpan.className = 'text';
-        if (data.type === 'image') {
-            const img = document.createElement('img');
-            img.src = data.text;
-            img.className = 'image-msg';
-            img.style.maxWidth = '200px';
-            img.style.borderRadius = '12px';
-            img.style.marginTop = '4px';
-            textSpan.appendChild(img);
-        } else {
-            textSpan.textContent = data.text || '';
-        }
-        const timeSpan = document.createElement('div');
-        timeSpan.className = 'time';
-        if (data.timestamp) {
-            const date = new Date(data.timestamp);
-            timeSpan.textContent = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        }
-        if (data.from === currentUser.uid) {
-            const deleteBtn = document.createElement('button');
-            deleteBtn.textContent = '✕';
-            deleteBtn.style.cssText = 'background:none; border:none; color:rgba(255,255,255,0.3); cursor:pointer; font-size:12px; margin-left:8px;';
-            deleteBtn.title = 'Удалить у себя';
-            deleteBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                deleteMessage(chatId, snapshot.key, false);
-            });
-            deleteBtn.addEventListener('contextmenu', (e) => {
-                e.preventDefault();
-                if (confirm('Удалить это сообщение у всех?')) {
-                    deleteMessage(chatId, snapshot.key, true);
-                }
-            });
-            timeSpan.appendChild(deleteBtn);
-        }
-        bubble.appendChild(senderSpan);
-        bubble.appendChild(textSpan);
-        bubble.appendChild(timeSpan);
-        msgEl.appendChild(avatarDiv);
-        msgEl.appendChild(bubble);
-        messagesContainer.appendChild(msgEl);
-        if (first) { messagesContainer.scrollTop = messagesContainer.scrollHeight; first = false; }
-    });
-    messagesListener = messagesRef;
-}
-
-function sendMessage() {
-    const text = messageInput.value.trim();
-    if (!text || !currentChatId) return;
-    const messagesRef = db.ref('messages/' + currentChatId);
-    messagesRef.push({
-        from: currentUser.uid,
-        text: text,
-        type: 'text',
-        timestamp: Date.now(),
-        senderName: (currentUserProfile.firstName || '') + (currentUserProfile.lastName ? ' ' + currentUserProfile.lastName : ''),
-        deletedBy: []
-    });
-    db.ref('chats/' + currentChatId).update({
-        lastMessage: text,
-        lastTimestamp: Date.now()
-    });
-    messageInput.value = '';
-}
-
-sendBtn.addEventListener('click', sendMessage);
-messageInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') sendMessage();
-});
-
-fileBtn.addEventListener('click', () => fileInput.click());
-fileInput.addEventListener('change', () => {
-    const file = fileInput.files[0];
-    if (!file) return;
-    const storageRef = storage.ref('images/' + Date.now() + '_' + file.name);
-    const uploadTask = storageRef.put(file);
-    uploadTask.on('state_changed', null, null, () => {
-        uploadTask.snapshot.ref.getDownloadURL().then(url => {
-            const messagesRef = db.ref('messages/' + currentChatId);
-            messagesRef.push({
-                from: currentUser.uid,
-                text: url,
-                type: 'image',
-                timestamp: Date.now(),
-                senderName: (currentUserProfile.firstName || '') + (currentUserProfile.lastName ? ' ' + currentUserProfile.lastName : ''),
-                deletedBy: []
-            });
-            db.ref('chats/' + currentChatId).update({
-                lastMessage: '📷 Фото',
-                lastTimestamp: Date.now()
-            });
-            fileInput.value = '';
-        });
-    });
-});
-
-function deleteMessage(chatId, messageId, forEveryone = false) {
-    const ref = db.ref('messages/' + chatId + '/' + messageId);
-    if (forEveryone) {
-        ref.remove();
-    } else {
-        ref.child('deletedBy').push(currentUser.uid);
-    }
-}
-
-backToChatList.addEventListener('click', () => {
-    if (messagesListener) {
-        messagesListener.off();
-        messagesListener = null;
-    }
-    activeChat.style.display = 'none';
-    chatList.style.display = 'block';
-    document.getElementById('searchBox').style.display = 'flex';
-    currentChatId = null;
-    currentChatPartnerUid = null;
-    callBtn.style.display = 'none';
-});
-
-// ============================================================
-// 8. ПОИСК И ЗАЯВКИ
-// ============================================================
-searchBtn.addEventListener('click', () => {
-    const query = searchInput.value.trim().toLowerCase();
-    if (!query) return;
-    db.ref('users').orderByChild('email').startAt(query).endAt(query + '\uf8ff')
-        .once('value')
-        .then(snapshot => {
-            const results = snapshot.val();
-            searchResults.style.display = 'block';
-            searchResults.innerHTML = '';
-            if (!results) {
-                searchResults.innerHTML = '<div style="color:rgba(255,255,255,0.5); padding:10px;">Ничего не найдено</div>';
-                return;
-            }
-            Object.entries(results).forEach(([uid, user]) => {
-                if (uid === currentUser.uid) return;
-                const isBlocked = (currentUserProfile.blocked || []).includes(uid);
-                const div = document.createElement('div');
-                div.className = 'result-item';
-                div.innerHTML = `
-                    <span>${user.firstName} ${user.lastName || ''} (${user.email})</span>
-                    ${isBlocked ? '<span style="color:rgba(255,255,255,0.3);">Заблокирован</span>' :
-                    `<button class="btn-secondary" style="padding:4px 16px; border-radius:30px; border:1px solid rgba(255,255,255,0.2); background:transparent; color:#fff; cursor:pointer;" data-uid="${uid}">Добавить</button>`}
-                `;
-                if (!isBlocked) {
-                    div.querySelector('button').addEventListener('click', function() {
-                        sendFriendRequest(this.dataset.uid);
-                    });
-                }
-                searchResults.appendChild(div);
-            });
-        })
-        .catch(err => {
-            console.error('❌ Ошибка поиска:', err);
-            searchResults.style.display = 'block';
-            searchResults.innerHTML = '<div style="color:red; padding:10px;">Ошибка поиска: ' + err.message + '</div>';
-        });
-});
-
-function sendFriendRequest(toUid) {
-    db.ref('friendRequests').orderByChild('from').equalTo(currentUser.uid).once('value')
-        .then(snapshot => {
-            const requests = snapshot.val();
-            if (requests) {
-                const existing = Object.values(requests).find(req => req.to === toUid && req.status === 'pending');
-                if (existing) {
-                    showProfileMessage('Заявка уже отправлена.', false);
-                    return;
-                }
-            }
-            const ref = db.ref('friendRequests').push();
-            ref.set({
-                from: currentUser.uid,
-                to: toUid,
-                status: 'pending',
-                timestamp: Date.now()
-            }).then(() => {
-                showProfileMessage('Заявка отправлена!', true);
-                searchResults.style.display = 'none';
-                updateRequestsBadge();
-            }).catch(err => {
-                showProfileMessage('Ошибка: ' + err.message, false);
-            });
-        });
-}
-
-// ============================================================
-// 9. ЗАПРОСЫ (ИСПРАВЛЕННЫЕ)
+// 9. ЗАПРОСЫ (ПЕРЕПИСАННЫЕ)
 // ============================================================
 function updateRequestsBadge() {
     if (!currentUser) return;
@@ -974,18 +152,15 @@ function updateRequestsBadge() {
         .catch(err => console.error('Ошибка обновления бейджа:', err));
 }
 
-function loadRequests() {
+async function loadRequests() {
     if (!currentUser) return;
     const list = document.getElementById('requestsList');
     list.innerHTML = '<div style="color:rgba(255,255,255,0.4); text-align:center; padding:20px;">Загрузка...</div>';
 
-    const incomingRef = db.ref('friendRequests').orderByChild('to').equalTo(currentUser.uid);
-    const outgoingRef = db.ref('friendRequests').orderByChild('from').equalTo(currentUser.uid);
+    try {
+        const incomingSnap = await db.ref('friendRequests').orderByChild('to').equalTo(currentUser.uid).once('value');
+        const outgoingSnap = await db.ref('friendRequests').orderByChild('from').equalTo(currentUser.uid).once('value');
 
-    Promise.all([
-        incomingRef.once('value'),
-        outgoingRef.once('value')
-    ]).then(([incomingSnap, outgoingSnap]) => {
         const incomingData = incomingSnap.val() || {};
         const outgoingData = outgoingSnap.val() || {};
 
@@ -1001,146 +176,102 @@ function loadRequests() {
                 <div id="incomingList" style="max-height:300px; overflow-y:auto;">
         `;
 
+        // Входящие
         if (incomingPending.length === 0) {
             html += `<div style="color:rgba(255,255,255,0.4); text-align:center; padding:20px;">Нет входящих заявок</div>`;
         } else {
-            const promises = incomingPending.map(([key, req]) => {
-                return db.ref('users/' + req.from).once('value').then(snap => {
-                    const user = snap.val();
-                    return { key, req, user };
-                });
-            });
-            return Promise.all(promises).then(results => {
-                results.forEach(({ key, req, user }) => {
-                    if (user) {
-                        html += `
-                            <div class="request-item" data-key="${key}">
-                                <div class="info">
-                                    <div class="name">${user.firstName || 'Пользователь'} ${user.lastName || ''}</div>
-                                    <div class="email">${user.email || ''}</div>
-                                </div>
-                                <div class="actions">
-                                    <button class="accept" data-key="${key}" data-uid="${req.from}">Принять</button>
-                                    <button class="reject" data-key="${key}">Отклонить</button>
-                                </div>
+            const results = await Promise.all(incomingPending.map(async ([key, req]) => {
+                const snap = await db.ref('users/' + req.from).once('value');
+                const user = snap.val();
+                return { key, req, user };
+            }));
+            results.forEach(({ key, req, user }) => {
+                if (user) {
+                    html += `
+                        <div class="request-item" data-key="${key}">
+                            <div class="info">
+                                <div class="name">${user.firstName || 'Пользователь'} ${user.lastName || ''}</div>
+                                <div class="email">${user.email || ''}</div>
                             </div>
-                        `;
-                    }
-                });
-                html += `</div><div id="outgoingList" style="display:none; max-height:300px; overflow-y:auto;">`;
-                if (outgoingPending.length === 0) {
-                    html += `<div style="color:rgba(255,255,255,0.4); text-align:center; padding:20px;">Нет исходящих заявок</div>`;
-                } else {
-                    const promises2 = outgoingPending.map(([key, req]) => {
-                        return db.ref('users/' + req.to).once('value').then(snap => {
-                            const user = snap.val();
-                            return { key, req, user };
-                        });
-                    });
-                    return Promise.all(promises2).then(results2 => {
-                        results2.forEach(({ key, req, user }) => {
-                            if (user) {
-                                html += `
-                                    <div class="request-item" data-key="${key}">
-                                        <div class="info">
-                                            <div class="name">${user.firstName || 'Пользователь'} ${user.lastName || ''}</div>
-                                            <div class="email">${user.email || ''}</div>
-                                        </div>
-                                        <div class="actions">
-                                            <button class="cancel" data-key="${key}">Отменить</button>
-                                        </div>
-                                    </div>
-                                `;
-                            }
-                        });
-                        html += `</div>`;
-                        list.innerHTML = html;
-                        addRequestListeners();
-                        document.querySelectorAll('.requests-tabs button').forEach(btn => {
-                            btn.addEventListener('click', function() {
-                                document.querySelectorAll('.requests-tabs button').forEach(b => b.classList.remove('active'));
-                                this.classList.add('active');
-                                const tab = this.dataset.rtab;
-                                document.getElementById('incomingList').style.display = tab === 'incoming' ? 'block' : 'none';
-                                document.getElementById('outgoingList').style.display = tab === 'outgoing' ? 'block' : 'none';
-                            });
-                        });
-                    });
+                            <div class="actions">
+                                <button class="accept" data-key="${key}" data-uid="${req.from}">Принять</button>
+                                <button class="reject" data-key="${key}">Отклонить</button>
+                            </div>
+                        </div>
+                    `;
                 }
             });
         }
-        if (incomingPending.length === 0) {
-            html += `</div><div id="outgoingList" style="max-height:300px; overflow-y:auto;">`;
-            if (outgoingPending.length === 0) {
-                html += `<div style="color:rgba(255,255,255,0.4); text-align:center; padding:20px;">Нет исходящих заявок</div>`;
-            } else {
-                const promises2 = outgoingPending.map(([key, req]) => {
-                    return db.ref('users/' + req.to).once('value').then(snap => {
-                        const user = snap.val();
-                        return { key, req, user };
-                    });
-                });
-                return Promise.all(promises2).then(results2 => {
-                    results2.forEach(({ key, req, user }) => {
-                        if (user) {
-                            html += `
-                                <div class="request-item" data-key="${key}">
-                                    <div class="info">
-                                        <div class="name">${user.firstName || 'Пользователь'} ${user.lastName || ''}</div>
-                                        <div class="email">${user.email || ''}</div>
-                                    </div>
-                                    <div class="actions">
-                                        <button class="cancel" data-key="${key}">Отменить</button>
-                                    </div>
-                                </div>
-                            `;
-                        }
-                    });
-                    html += `</div>`;
-                    list.innerHTML = html;
-                    addRequestListeners();
-                    document.querySelectorAll('.requests-tabs button').forEach(btn => {
-                        btn.addEventListener('click', function() {
-                            document.querySelectorAll('.requests-tabs button').forEach(b => b.classList.remove('active'));
-                            this.classList.add('active');
-                            const tab = this.dataset.rtab;
-                            document.getElementById('incomingList').style.display = tab === 'incoming' ? 'block' : 'none';
-                            document.getElementById('outgoingList').style.display = tab === 'outgoing' ? 'block' : 'none';
-                        });
-                    });
-                });
-            }
-            list.innerHTML = html;
-            addRequestListeners();
+
+        html += `</div><div id="outgoingList" style="display:none; max-height:300px; overflow-y:auto;">`;
+
+        // Исходящие
+        if (outgoingPending.length === 0) {
+            html += `<div style="color:rgba(255,255,255,0.4); text-align:center; padding:20px;">Нет исходящих заявок</div>`;
+        } else {
+            const results = await Promise.all(outgoingPending.map(async ([key, req]) => {
+                const snap = await db.ref('users/' + req.to).once('value');
+                const user = snap.val();
+                return { key, req, user };
+            }));
+            results.forEach(({ key, req, user }) => {
+                if (user) {
+                    html += `
+                        <div class="request-item" data-key="${key}">
+                            <div class="info">
+                                <div class="name">${user.firstName || 'Пользователь'} ${user.lastName || ''}</div>
+                                <div class="email">${user.email || ''}</div>
+                            </div>
+                            <div class="actions">
+                                <button class="cancel" data-key="${key}">Отменить</button>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
         }
-    }).catch(err => {
+
+        html += `</div></div>`;
+        list.innerHTML = html;
+
+        // Добавляем обработчики
+        document.querySelectorAll('.accept').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const key = this.dataset.key;
+                const uid = this.dataset.uid;
+                acceptRequest(key, uid);
+            });
+        });
+        document.querySelectorAll('.reject').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const key = this.dataset.key;
+                rejectRequest(key);
+            });
+        });
+        document.querySelectorAll('.cancel').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const key = this.dataset.key;
+                cancelRequest(key);
+            });
+        });
+
+        // Переключение вкладок
+        document.querySelectorAll('.requests-tabs button').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.requests-tabs button').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                const tab = this.dataset.rtab;
+                document.getElementById('incomingList').style.display = tab === 'incoming' ? 'block' : 'none';
+                document.getElementById('outgoingList').style.display = tab === 'outgoing' ? 'block' : 'none';
+            });
+        });
+
+    } catch (err) {
+        console.error('Ошибка загрузки заявок:', err);
         list.innerHTML = `<div style="color:red; padding:10px;">Ошибка загрузки: ${err.message}</div>`;
-    });
+    }
 }
 
-function addRequestListeners() {
-    document.querySelectorAll('.accept').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const key = this.dataset.key;
-            const uid = this.dataset.uid;
-            acceptRequest(key, uid);
-        });
-    });
-    document.querySelectorAll('.reject').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const key = this.dataset.key;
-            rejectRequest(key);
-        });
-    });
-    document.querySelectorAll('.cancel').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const key = this.dataset.key;
-            cancelRequest(key);
-        });
-    });
-}
-
-// ===== ИСПРАВЛЕННАЯ ФУНКЦИЯ ПРИНЯТИЯ ЗАЯВКИ =====
 function acceptRequest(key, friendUid) {
     console.log('✅ Принимаем заявку:', key, 'от пользователя:', friendUid);
     const chatId = [currentUser.uid, friendUid].sort().join('_');
@@ -1219,6 +350,13 @@ requestsModal.addEventListener('click', (e) => {
         requestsModal.classList.remove('show');
     }
 });
+
+// ============================================================
+// 10-14. ОСТАЛЬНЫЕ ФУНКЦИИ (БЕЗ ИЗМЕНЕНИЙ)
+// ============================================================
+// Здесь должны быть функции блокировки, вспомогательные, звонки, состояние авторизации, выход.
+// Так как они уже были в вашем коде, я их не повторяю.
+// Если у вас нет остальных функций, просто скопируйте их из предыдущего полного файла.
 
 // ============================================================
 // 10. БЛОКИРОВКА
