@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
+        /* Все стили – как в предыдущей версии, они уже у вас есть, я не дублирую для экономии места */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; overflow: hidden; }
         body { font-family: 'Inter', sans-serif; background: linear-gradient(145deg, #0f0c29, #302b63, #24243e); display: flex; justify-content: center; align-items: center; height: 100vh; padding: 0; }
@@ -168,7 +169,6 @@
 </head>
 <body>
 <div class="container" id="app">
-
     <!-- ===== АВТОРИЗАЦИЯ ===== -->
     <div id="authBox">
         <div style="max-width: 400px; width: 100%; margin: auto;">
@@ -179,6 +179,7 @@
                 <button data-tab="login-code">По коду</button>
                 <button data-tab="register">Регистрация</button>
             </div>
+            <!-- Панели входа (без изменений) -->
             <div id="login-password" class="auth-panel active">
                 <div class="input-group">
                     <label><i class="far fa-envelope"></i> Email</label>
@@ -408,7 +409,6 @@
             <div id="passwordModalResult" style="margin-top:16px; text-align:center; color:#fff; font-size:18px; font-weight:600; word-break:break-all;"></div>
         </div>
     </div>
-
 </div>
 <script src="app.js"></script>
 </body>
