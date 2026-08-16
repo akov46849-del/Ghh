@@ -126,7 +126,7 @@ sendCodeBtn.addEventListener('click', () => {
     });
 });
 
-// --- Проверка кода (ИСПРАВЛЕННАЯ ЛОГИКА) ---
+// --- Проверка кода (ИСПРАВЛЕННАЯ) ---
 verifyCodeBtn.addEventListener('click', () => {
     const code = codeInput.value.trim();
     if (!code || code.length !== 6) {
@@ -161,43 +161,45 @@ verifyCodeBtn.addEventListener('click', () => {
             return;
         }
 
-        // Удаляем код из базы
+        // Удаляем код
         fetch(url, { method: 'DELETE' }).catch(() => {});
 
-        // ======= ГЛАВНОЕ ИСПРАВЛЕНИЕ =======
-        // Проверяем, существует ли пользователь с таким email
+        // ========== ИСПРАВЛЕННАЯ ЛОГИКА ВХОДА ==========
         auth.fetchSignInMethodsForEmail(currentEmail)
             .then(methods => {
                 if (methods.length === 0) {
-                    // Пользователь не существует – создаём с временным паролем
+                    // Новый пользователь – создаём
                     const tempPassword = Math.random().toString(36).slice(-8);
                     return auth.createUserWithEmailAndPassword(currentEmail, tempPassword)
                         .then(userCred => {
-                            // Сохраняем пароль в профиль
                             const uid = userCred.user.uid;
                             return db.ref('users/' + uid + '/password').set(tempPassword)
                                 .then(() => userCred);
+                        })
+                        .then(() => {
+                            showCodeMessage('✅ Вход выполнен!', true);
                         });
                 } else {
-                    // Пользователь уже существует – пытаемся войти с временным паролем
-                    const tempPassword = Math.random().toString(36).slice(-8);
-                    return auth.signInWithEmailAndPassword(currentEmail, tempPassword)
-                        .catch(() => {
-                            // Если временный пароль не подходит, загружаем сохранённый
-                            return db.ref('users').orderByChild('email').equalTo(currentEmail).once('value')
-                                .then(snapshot => {
-                                    const userData = snapshot.val();
-                                    if (!userData) throw new Error('Пользователь не найден в базе');
-                                    const uid = Object.keys(userData)[0];
-                                    const savedPassword = userData[uid].password;
-                                    if (!savedPassword) throw new Error('Пароль не сохранён');
-                                    return auth.signInWithEmailAndPassword(currentEmail, savedPassword);
-                                });
+                    // Пользователь уже существует – ищем пароль в базе
+                    return db.ref('users').orderByChild('email').equalTo(currentEmail).once('value')
+                        .then(snapshot => {
+                            const userData = snapshot.val();
+                            if (!userData) throw new Error('Пользователь не найден в базе');
+                            const uid = Object.keys(userData)[0];
+                            const savedPassword = userData[uid].password;
+                            if (!savedPassword) {
+                                // Пароль не сохранён – создаём новый
+                                const newPass = Math.random().toString(36).slice(-8);
+                                return db.ref('users/' + uid + '/password').set(newPass)
+                                    .then(() => auth.signInWithEmailAndPassword(currentEmail, newPass));
+                            } else {
+                                return auth.signInWithEmailAndPassword(currentEmail, savedPassword);
+                            }
+                        })
+                        .then(() => {
+                            showCodeMessage('✅ Вход выполнен!', true);
                         });
                 }
-            })
-            .then(() => {
-                showCodeMessage('✅ Вход выполнен!', true);
             })
             .catch(err => {
                 showCodeMessage('Ошибка: ' + err.message, false);
