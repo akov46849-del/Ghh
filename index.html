@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* CSS (полный, как в предыдущей версии) */
+        /* Стили (полные, как в предыдущем ответе) — я их сокращу для экономии места, но вы можете скопировать из предыдущего полного варианта */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; overflow: hidden; }
         body { font-family: 'Inter', sans-serif; background: linear-gradient(145deg, #0f0c29, #302b63, #24243e); display: flex; justify-content: center; align-items: center; height: 100vh; padding: 0; }
@@ -107,7 +107,7 @@
         #activeChat .chat-header { flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
         #activeChat .chat-header .back-btn { background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; padding: 4px 8px; }
         #activeChat .chat-header .chat-title { color: #fff; font-weight: 600; font-size: 16px; }
-        #activeChat .chat-header .chat-actions { display: flex; gap: 6px; }
+        #activeChat .chat-header .chat-actions { display: flex; gap: 6px; align-items: center; }
         #activeChat .chat-header .chat-actions button { background: rgba(255,255,255,0.06); border: none; color: rgba(255,255,255,0.6); padding: 4px 10px; border-radius: 30px; cursor: pointer; font-size: 12px; transition: 0.2s; }
 
         #messagesContainer { flex: 1; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 24px; padding: 16px; display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; min-height: 0; }
@@ -142,11 +142,18 @@
         input:checked + .slider { background: linear-gradient(135deg, #f093fb, #f5576c); }
         input:checked + .slider:before { transform: translateX(22px); }
 
+        /* Модалка входящего звонка */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 1000; justify-content: center; align-items: center; }
         .modal-overlay.show { display: flex; }
         .modal { background: rgba(30,30,50,0.95); border-radius: 32px; padding: 32px; max-width: 400px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.06); }
         .modal h2 { color: #fff; margin-bottom: 16px; text-align: center; }
         .modal .modal-close { float: right; background: none; border: none; color: rgba(255,255,255,0.5); font-size: 24px; cursor: pointer; }
+
+        /* Видео-контейнер для звонка */
+        #callContainer { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: #0f0c29; z-index: 999; flex-direction: column; align-items: center; justify-content: center; }
+        #callContainer video { width: 100%; max-height: 80vh; background: #000; border-radius: 20px; }
+        #callContainer #localVideo { position: absolute; bottom: 20px; right: 20px; width: 120px; height: 160px; background: #333; border-radius: 12px; border: 2px solid #fff; object-fit: cover; }
+        #callContainer #hangupBtn { margin-top: 16px; padding: 12px 32px; background: #f5576c; border: none; border-radius: 60px; color: #fff; font-size: 18px; cursor: pointer; }
 
         @media (max-width: 480px) { .container { padding: 16px; } .logo h1 { font-size: 26px; } }
     </style>
@@ -154,7 +161,7 @@
 <body>
 <div class="container" id="app">
 
-    <!-- АВТОРИЗАЦИЯ -->
+    <!-- ===== АВТОРИЗАЦИЯ ===== -->
     <div id="authBox">
         <div style="max-width: 400px; width: 100%; margin: auto;">
             <div class="logo"><i class="fas fa-bolt"></i><h1>ZING</h1></div>
@@ -228,7 +235,7 @@
         </div>
     </div>
 
-    <!-- УСТАНОВКА ПАРОЛЯ (после регистрации) -->
+    <!-- ===== УСТАНОВКА ПАРОЛЯ ===== -->
     <div id="setPasswordBox">
         <div style="max-width: 400px; width: 100%; margin: auto;">
             <div class="logo"><i class="fas fa-bolt"></i><h1>ZING</h1></div>
@@ -253,9 +260,8 @@
         </div>
     </div>
 
-    <!-- ПРОФИЛЬ (настройки) -->
+    <!-- ===== ПРОФИЛЬ ===== -->
     <div id="profileBox">
-        <!-- ... тот же код, что и раньше ... -->
         <div class="profile-header" style="text-align:center; margin-bottom:24px; flex-shrink:0;">
             <div class="avatar-big" id="profileAvatar" style="width:120px; height:120px; border-radius:50%; background: linear-gradient(135deg, #f093fb, #f5576c); margin: 0 auto 12px; display:flex; align-items:center; justify-content:center; font-size:48px; color:#fff; box-shadow: 0 12px 30px rgba(245,87,108,0.3); background-size:cover; background-position:center; position:relative; cursor:pointer;">
                 <div class="avatar-upload-overlay" style="position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,0.5); color:#fff; font-size:12px; text-align:center; padding:6px; border-radius:0 0 50% 50%; opacity:0; transition:0.3s;">
@@ -311,7 +317,7 @@
         </div>
     </div>
 
-    <!-- ЧАТ (весь код) -->
+    <!-- ===== ЧАТ ===== -->
     <div id="chatBox">
         <div class="chat-header">
             <div class="user-info">
@@ -336,6 +342,9 @@
                 <button class="back-btn" id="backToChatList"><i class="fas fa-arrow-left"></i></button>
                 <span class="chat-title" id="activeChatName">Чат</span>
                 <div class="chat-actions">
+                    <button id="callBtn" style="background:rgba(255,255,255,0.1); border:none; color:#fff; padding:4px 10px; border-radius:30px; cursor:pointer; font-size:14px; display:none;">
+                        <i class="fas fa-phone"></i>
+                    </button>
                     <button id="blockUserBtn">Блокировать</button>
                 </div>
             </div>
@@ -350,22 +359,41 @@
             </div>
         </div>
     </div>
-</div>
 
-<!-- Модальное окно для показа пароля -->
-<div class="modal-overlay" id="passwordModal">
-    <div class="modal">
-        <button class="modal-close" id="passwordModalClose">&times;</button>
-        <h2>Ваш пароль</h2>
-        <div class="input-group">
-            <label>Введите код из письма</label>
-            <input type="text" id="passwordModalCode" placeholder="123456" maxlength="6">
+    <!-- ===== МОДАЛКА ВХОДЯЩЕГО ЗВОНКА ===== -->
+    <div class="modal-overlay" id="incomingCallModal">
+        <div class="modal">
+            <h2 id="incomingCallerName">Входящий звонок</h2>
+            <p style="color:rgba(255,255,255,0.6); text-align:center;">от <span id="incomingCaller"></span></p>
+            <div style="display:flex; gap:12px; margin-top:20px; justify-content:center;">
+                <button class="btn" id="acceptCallBtn" style="flex:1; background:#4ade80;">Ответить</button>
+                <button class="btn btn-danger" id="rejectCallBtn" style="flex:1; background:#f5576c;">Отклонить</button>
+            </div>
         </div>
-        <button class="btn" id="passwordModalConfirm">Подтвердить</button>
-        <div id="passwordModalResult" style="margin-top:16px; text-align:center; color:#fff; font-size:18px; font-weight:600; word-break:break-all;"></div>
     </div>
-</div>
 
+    <!-- ===== ВИДЕО-КОНТЕЙНЕР ДЛЯ ЗВОНКА ===== -->
+    <div id="callContainer">
+        <video id="remoteVideo" autoplay playsinline style="width:100%; max-height:80vh; background:#000; border-radius:20px;"></video>
+        <video id="localVideo" autoplay playsinline muted style="position:absolute; bottom:20px; right:20px; width:120px; height:160px; background:#333; border-radius:12px; border:2px solid #fff; object-fit:cover;"></video>
+        <button id="hangupBtn" style="margin-top:16px; padding:12px 32px; background:#f5576c; border:none; border-radius:60px; color:#fff; font-size:18px; cursor:pointer;">Завершить</button>
+    </div>
+
+    <!-- ===== МОДАЛКА ПАРОЛЯ ===== -->
+    <div class="modal-overlay" id="passwordModal">
+        <div class="modal">
+            <button class="modal-close" id="passwordModalClose">&times;</button>
+            <h2>Ваш пароль</h2>
+            <div class="input-group">
+                <label>Введите код из письма</label>
+                <input type="text" id="passwordModalCode" placeholder="123456" maxlength="6">
+            </div>
+            <button class="btn" id="passwordModalConfirm">Подтвердить</button>
+            <div id="passwordModalResult" style="margin-top:16px; text-align:center; color:#fff; font-size:18px; font-weight:600; word-break:break-all;"></div>
+        </div>
+    </div>
+
+</div>
 <script src="app.js"></script>
 </body>
 </html>
