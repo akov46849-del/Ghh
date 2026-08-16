@@ -30,7 +30,7 @@ let tempUserForPassword = null;
 const FIREBASE_DB_URL = 'https://zing-4a547-default-rtdb.europe-west1.firebasedatabase.app';
 
 // ============================================================
-// DOM-ЭЛЕМЕНТЫ (все)
+// DOM-ЭЛЕМЕНТЫ
 // ============================================================
 const authBox = document.getElementById('authBox');
 const profileBox = document.getElementById('profileBox');
@@ -952,7 +952,7 @@ function sendFriendRequest(toUid) {
 }
 
 // ============================================================
-// 9. ЗАПРОСЫ (ПЕРЕПИСАНЫ НА ASYNC/AWAIT)
+// 9. ЗАПРОСЫ (исправленная версия с логами)
 // ============================================================
 function updateRequestsBadge() {
     if (!currentUser) return;
@@ -975,13 +975,23 @@ function updateRequestsBadge() {
 }
 
 async function loadRequests() {
-    if (!currentUser) return;
+    if (!currentUser) {
+        console.warn('⚠️ loadRequests: пользователь не авторизован');
+        return;
+    }
     const list = document.getElementById('requestsList');
+    if (!list) {
+        console.error('❌ Элемент requestsList не найден в DOM');
+        return;
+    }
     list.innerHTML = '<div style="color:rgba(255,255,255,0.4); text-align:center; padding:20px;">Загрузка...</div>';
 
     try {
+        console.log('🔍 Загружаем заявки для пользователя:', currentUser.uid);
         const incomingSnap = await db.ref('friendRequests').orderByChild('to').equalTo(currentUser.uid).once('value');
+        console.log('📦 Входящие данные:', incomingSnap.val());
         const outgoingSnap = await db.ref('friendRequests').orderByChild('from').equalTo(currentUser.uid).once('value');
+        console.log('📦 Исходящие данные:', outgoingSnap.val());
 
         const incomingData = incomingSnap.val() || {};
         const outgoingData = outgoingSnap.val() || {};
@@ -998,16 +1008,12 @@ async function loadRequests() {
                 <div id="incomingList" style="max-height:300px; overflow-y:auto;">
         `;
 
-        // Входящие
         if (incomingPending.length === 0) {
             html += `<div style="color:rgba(255,255,255,0.4); text-align:center; padding:20px;">Нет входящих заявок</div>`;
         } else {
-            const results = await Promise.all(incomingPending.map(async ([key, req]) => {
+            for (const [key, req] of incomingPending) {
                 const snap = await db.ref('users/' + req.from).once('value');
                 const user = snap.val();
-                return { key, req, user };
-            }));
-            results.forEach(({ key, req, user }) => {
                 if (user) {
                     html += `
                         <div class="request-item" data-key="${key}">
@@ -1022,21 +1028,17 @@ async function loadRequests() {
                         </div>
                     `;
                 }
-            });
+            }
         }
 
         html += `</div><div id="outgoingList" style="display:none; max-height:300px; overflow-y:auto;">`;
 
-        // Исходящие
         if (outgoingPending.length === 0) {
             html += `<div style="color:rgba(255,255,255,0.4); text-align:center; padding:20px;">Нет исходящих заявок</div>`;
         } else {
-            const results = await Promise.all(outgoingPending.map(async ([key, req]) => {
+            for (const [key, req] of outgoingPending) {
                 const snap = await db.ref('users/' + req.to).once('value');
                 const user = snap.val();
-                return { key, req, user };
-            }));
-            results.forEach(({ key, req, user }) => {
                 if (user) {
                     html += `
                         <div class="request-item" data-key="${key}">
@@ -1050,7 +1052,7 @@ async function loadRequests() {
                         </div>
                     `;
                 }
-            });
+            }
         }
 
         html += `</div></div>`;
@@ -1088,8 +1090,10 @@ async function loadRequests() {
             });
         });
 
+        console.log('✅ Загрузка заявок завершена');
+
     } catch (err) {
-        console.error('Ошибка загрузки заявок:', err);
+        console.error('❌ Ошибка загрузки заявок:', err);
         list.innerHTML = `<div style="color:red; padding:10px;">Ошибка загрузки: ${err.message}</div>`;
     }
 }
