@@ -37,6 +37,7 @@ const profileBox = document.getElementById('profileBox');
 const chatBox = document.getElementById('chatBox');
 const setPasswordBox = document.getElementById('setPasswordBox');
 
+// Вход по паролю
 const loginEmail = document.getElementById('loginEmail');
 const loginPassword = document.getElementById('loginPassword');
 const loginPasswordBtn = document.getElementById('loginPasswordBtn');
@@ -44,6 +45,7 @@ const loginMessage = document.getElementById('loginMessage');
 const loginMessageText = document.getElementById('loginMessageText');
 const resetPasswordBtn = document.getElementById('resetPasswordBtn');
 
+// Вход по коду
 const codeLoginEmail = document.getElementById('codeLoginEmail');
 const sendCodeLoginBtn = document.getElementById('sendCodeLoginBtn');
 const codeLoginStep2 = document.getElementById('codeLoginStep2');
@@ -52,6 +54,16 @@ const verifyCodeLoginBtn = document.getElementById('verifyCodeLoginBtn');
 const codeLoginMessage = document.getElementById('codeLoginMessage');
 const codeLoginMessageText = document.getElementById('codeLoginMessageText');
 
+// Регистрация
+const registerEmail = document.getElementById('registerEmail');
+const sendCodeRegisterBtn = document.getElementById('sendCodeRegisterBtn');
+const registerStep2 = document.getElementById('registerStep2');
+const registerCodeInput = document.getElementById('registerCodeInput');
+const verifyRegisterBtn = document.getElementById('verifyRegisterBtn');
+const registerMessage = document.getElementById('registerMessage');
+const registerMessageText = document.getElementById('registerMessageText');
+
+// Установка пароля
 const newPassword = document.getElementById('newPassword');
 const confirmPassword = document.getElementById('confirmPassword');
 const setPasswordBtn = document.getElementById('setPasswordBtn');
@@ -59,6 +71,7 @@ const setPasswordMessage = document.getElementById('setPasswordMessage');
 const setPasswordMessageText = document.getElementById('setPasswordMessageText');
 const passwordOptions = document.getElementById('passwordOptions');
 
+// Профиль
 const profileFirstName = document.getElementById('profileFirstName');
 const profileLastName = document.getElementById('profileLastName');
 const profileGender = document.getElementById('profileGender');
@@ -74,6 +87,7 @@ const showPasswordBtn = document.getElementById('showPasswordBtn');
 const changePasswordBtn = document.getElementById('changePasswordBtn');
 const twoFactorToggle = document.getElementById('twoFactorToggle');
 
+// Чат
 const chatAvatar = document.getElementById('chatAvatar');
 const chatUserName = document.getElementById('chatUserName');
 const logoutBtn = document.getElementById('logoutBtn');
@@ -92,6 +106,7 @@ const backToChatList = document.getElementById('backToChatList');
 const activeChatName = document.getElementById('activeChatName');
 const blockUserBtn = document.getElementById('blockUserBtn');
 
+// Модалка пароля
 const passwordModal = document.getElementById('passwordModal');
 const passwordModalClose = document.getElementById('passwordModalClose');
 const passwordModalCode = document.getElementById('passwordModalCode');
@@ -99,9 +114,8 @@ const passwordModalConfirm = document.getElementById('passwordModalConfirm');
 const passwordModalResult = document.getElementById('passwordModalResult');
 
 // ============================================================
-// 1. АВТОРИЗАЦИЯ
+// 1. АВТОРИЗАЦИЯ (вкладки)
 // ============================================================
-
 document.querySelectorAll('.auth-tabs button').forEach(btn => {
     btn.addEventListener('click', function() {
         document.querySelectorAll('.auth-tabs button').forEach(b => b.classList.remove('active'));
@@ -112,6 +126,9 @@ document.querySelectorAll('.auth-tabs button').forEach(btn => {
     });
 });
 
+// ============================================================
+// 2. ВХОД ПО ПАРОЛЮ
+// ============================================================
 loginPasswordBtn.addEventListener('click', () => {
     const email = loginEmail.value.trim();
     const pass = loginPassword.value.trim();
@@ -161,6 +178,24 @@ loginPasswordBtn.addEventListener('click', () => {
         });
 });
 
+resetPasswordBtn.addEventListener('click', () => {
+    const email = loginEmail.value.trim();
+    if (!email || !email.includes('@')) {
+        showLoginMessage('Введите email для сброса.', false);
+        return;
+    }
+    auth.sendPasswordResetEmail(email)
+        .then(() => {
+            showLoginMessage('Ссылка для сброса отправлена на почту.', true);
+        })
+        .catch(err => {
+            showLoginMessage('Ошибка: ' + err.message, false);
+        });
+});
+
+// ============================================================
+// 3. ВХОД ПО КОДУ
+// ============================================================
 sendCodeLoginBtn.addEventListener('click', () => {
     const email = codeLoginEmail.value.trim();
     if (!email || !email.includes('@')) {
@@ -204,13 +239,21 @@ verifyCodeLoginBtn.addEventListener('click', () => {
                 return;
             }
             fetch(url, { method: 'DELETE' }).catch(() => {});
+            // Ищем пользователя в БД
             db.ref('users').orderByChild('email').equalTo(currentEmail).once('value')
                 .then(snapshot => {
                     const userData = snapshot.val();
-                    if (!userData) throw new Error('Пользователь не найден');
+                    if (!userData) {
+                        // Пользователь не найден – предлагаем зарегистрироваться
+                        showCodeLoginMessage('Пользователь не найден. Зарегистрируйтесь на вкладке "Регистрация".', false);
+                        return;
+                    }
                     const uid = Object.keys(userData)[0];
                     const savedPassword = userData[uid].password;
-                    if (!savedPassword) throw new Error('Пароль не сохранён');
+                    if (!savedPassword) {
+                        showCodeLoginMessage('Пароль не сохранён. Используйте сброс пароля.', false);
+                        return;
+                    }
                     return auth.signInWithEmailAndPassword(currentEmail, savedPassword);
                 })
                 .then(() => {
@@ -225,23 +268,79 @@ verifyCodeLoginBtn.addEventListener('click', () => {
         });
 });
 
-resetPasswordBtn.addEventListener('click', () => {
-    const email = loginEmail.value.trim();
+// ============================================================
+// 4. РЕГИСТРАЦИЯ
+// ============================================================
+sendCodeRegisterBtn.addEventListener('click', () => {
+    const email = registerEmail.value.trim();
     if (!email || !email.includes('@')) {
-        showLoginMessage('Введите email для сброса.', false);
+        showRegisterMessage('Введите корректный email.', false);
         return;
     }
-    auth.sendPasswordResetEmail(email)
-        .then(() => {
-            showLoginMessage('Ссылка для сброса отправлена на почту.', true);
+    currentEmail = email;
+    const url = `${FIREBASE_DB_URL}/emailQueue.json`;
+    const data = { email, status: 'pending', timestamp: Date.now() };
+    fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(res => {
+        if (!res.ok) throw new Error('Ошибка отправки');
+        return res.json();
+    })
+    .then(() => {
+        showRegisterMessage('Код отправлен на почту!', true);
+        registerStep2.style.display = 'block';
+    })
+    .catch(err => {
+        showRegisterMessage('Ошибка: ' + err.message, false);
+    });
+});
+
+verifyRegisterBtn.addEventListener('click', () => {
+    const code = registerCodeInput.value.trim();
+    if (!code || code.length !== 6) {
+        showRegisterMessage('Введите 6-значный код.', false);
+        return;
+    }
+    const emailKey = currentEmail.replace(/\./g, '_');
+    const url = `${FIREBASE_DB_URL}/codes/${emailKey}.json`;
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            if (!data || data.code !== code || Date.now() - data.createdAt > 10*60*1000) {
+                showRegisterMessage('Неверный или истёкший код.', false);
+                return;
+            }
+            fetch(url, { method: 'DELETE' }).catch(() => {});
+            // Проверяем, не зарегистрирован ли уже этот email
+            auth.fetchSignInMethodsForEmail(currentEmail)
+                .then(methods => {
+                    if (methods.length > 0) {
+                        showRegisterMessage('Этот email уже зарегистрирован. Войдите по паролю.', false);
+                        return;
+                    }
+                    // Создаём пользователя с временным паролем
+                    const tempPassword = Math.random().toString(36).slice(-8);
+                    return auth.createUserWithEmailAndPassword(currentEmail, tempPassword)
+                        .then(userCred => {
+                            // Показываем установку пароля
+                            tempUserForPassword = userCred.user;
+                            showSetPassword(userCred.user);
+                        });
+                })
+                .catch(err => {
+                    showRegisterMessage('Ошибка: ' + err.message, false);
+                });
         })
         .catch(err => {
-            showLoginMessage('Ошибка: ' + err.message, false);
+            showRegisterMessage('Ошибка: ' + err.message, false);
         });
 });
 
 // ============================================================
-// 2. УСТАНОВКА ПАРОЛЯ
+// 5. УСТАНОВКА ПАРОЛЯ
 // ============================================================
 function showSetPassword(user) {
     authBox.style.display = 'none';
@@ -307,9 +406,18 @@ setPasswordBtn.addEventListener('click', () => {
             return db.ref('users/' + user.uid + '/password').set(pwd);
         })
         .then(() => {
+            // Сохраняем базовый профиль
+            return db.ref('users/' + user.uid).update({
+                firstName: currentEmail.split('@')[0] || 'User',
+                email: currentEmail,
+                createdAt: Date.now()
+            });
+        })
+        .then(() => {
             showSetPasswordMessage('Пароль установлен! ✅', true);
             setTimeout(() => {
                 setPasswordBox.style.display = 'none';
+                // Вход выполнен, показываем чат
                 showChat();
             }, 1000);
         })
@@ -323,7 +431,7 @@ setPasswordBtn.addEventListener('click', () => {
 });
 
 // ============================================================
-// 3. ПРОФИЛЬ
+// 6. ПРОФИЛЬ
 // ============================================================
 function openProfile() {
     chatBox.style.display = 'none';
@@ -526,7 +634,7 @@ deleteAccountBtn.addEventListener('click', () => {
 closeProfileBtn.addEventListener('click', closeProfile);
 
 // ============================================================
-// 4. ЧАТ
+// 7. ЧАТ
 // ============================================================
 function showChat() {
     authBox.style.display = 'none';
@@ -770,7 +878,7 @@ backToChatList.addEventListener('click', () => {
 });
 
 // ============================================================
-// 5. ПОИСК И ЗАЯВКИ
+// 8. ПОИСК И ЗАЯВКИ
 // ============================================================
 searchBtn.addEventListener('click', () => {
     const query = searchInput.value.trim().toLowerCase();
@@ -832,7 +940,7 @@ function sendFriendRequest(toUid) {
 }
 
 // ============================================================
-// 6. БЛОКИРОВКА
+// 9. БЛОКИРОВКА
 // ============================================================
 function blockUser(uid) {
     const blockedList = currentUserProfile.blocked || [];
@@ -853,7 +961,7 @@ function blockUser(uid) {
 }
 
 // ============================================================
-// 7. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// 10. ВСПОМОГАТЕЛЬНЫЕ
 // ============================================================
 function showLoginMessage(text, success) {
     loginMessage.style.display = 'flex';
@@ -869,6 +977,14 @@ function showCodeLoginMessage(text, success) {
     codeLoginMessage.querySelector('.icon').textContent = success ? '✅' : '⚠️';
     codeLoginMessageText.textContent = text;
     setTimeout(() => codeLoginMessage.style.display = 'none', 5000);
+}
+
+function showRegisterMessage(text, success) {
+    registerMessage.style.display = 'flex';
+    registerMessage.className = 'message show' + (success ? ' success' : '');
+    registerMessage.querySelector('.icon').textContent = success ? '✅' : '⚠️';
+    registerMessageText.textContent = text;
+    setTimeout(() => registerMessage.style.display = 'none', 5000);
 }
 
 function showSetPasswordMessage(text, success) {
@@ -912,7 +1028,7 @@ function verify2FACode(email, code) {
 }
 
 // ============================================================
-// 8. СОСТОЯНИЕ АВТОРИЗАЦИИ
+// 11. СОСТОЯНИЕ АВТОРИЗАЦИИ
 // ============================================================
 auth.onAuthStateChanged((user) => {
     if (user) {
@@ -946,7 +1062,7 @@ auth.onAuthStateChanged((user) => {
 });
 
 // ============================================================
-// 9. ВЫХОД
+// 12. ВЫХОД
 // ============================================================
 logoutBtn.addEventListener('click', () => {
     auth.signOut();
