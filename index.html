@@ -9,11 +9,9 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
-    <!-- Font Awesome и Google Font -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* === ВСЕ СТИЛИ === */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', sans-serif; background: linear-gradient(145deg, #0f0c29, #302b63, #24243e); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
         .container { background: rgba(255,255,255,0.06); backdrop-filter: blur(18px); border-radius: 40px; padding: 40px 36px; max-width: 700px; width: 100%; box-shadow: 0 30px 60px -12px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.06); max-height: 90vh; overflow-y: auto; }
@@ -54,7 +52,7 @@
         .mt-10 { margin-top: 10px; }
         #step2 { display: none; }
 
-        /* === Чат === */
+        /* Чат */
         #chatBox .chat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
         #chatBox .chat-header .user-info { display: flex; align-items: center; gap: 12px; }
         #chatBox .chat-header .user-info .avatar-small { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #f093fb, #f5576c); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; color: #fff; flex-shrink: 0; }
@@ -63,32 +61,28 @@
         #chatBox .chat-header .logout-btn { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); color: rgba(255,255,255,0.5); padding: 8px 18px; border-radius: 40px; cursor: pointer; font-size: 13px; transition: 0.3s; font-family: 'Inter', sans-serif; }
         #chatBox .chat-header .logout-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
 
-        /* Поиск и контакты */
         #searchBox { display: flex; gap: 10px; margin-bottom: 16px; }
         #searchBox input { flex: 1; padding: 12px 18px; border-radius: 60px; border: 1.5px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); color: #fff; font-size: 15px; outline: none; transition: 0.3s; font-family: 'Inter', sans-serif; }
         #searchBox input:focus { border-color: #f5576c; background: rgba(255,255,255,0.08); }
         #searchBox button { padding: 12px 20px; border: none; border-radius: 60px; background: linear-gradient(135deg, #f093fb, #f5576c); color: #fff; font-weight: 600; cursor: pointer; font-size: 15px; }
         #searchResults { max-height: 200px; overflow-y: auto; margin-bottom: 16px; background: rgba(0,0,0,0.2); border-radius: 20px; padding: 12px; display: none; }
         #searchResults .result-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 12px; margin-bottom: 8px; }
-        #searchResults .result-item:last-child { margin-bottom: 0; }
 
-        /* Список чатов */
         #chatList { max-height: 300px; overflow-y: auto; margin-bottom: 16px; background: rgba(0,0,0,0.2); border-radius: 20px; padding: 12px; }
         #chatList .chat-item { display: flex; align-items: center; gap: 12px; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 16px; margin-bottom: 8px; cursor: pointer; transition: 0.2s; }
         #chatList .chat-item:hover { background: rgba(255,255,255,0.1); }
-        #chatList .chat-item .chat-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #f093fb, #f5576c); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; flex-shrink: 0; }
+        #chatList .chat-item .chat-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #f093fb, #f5576c); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; flex-shrink: 0; background-size: cover; }
         #chatList .chat-item .chat-info { flex: 1; color: #fff; }
         #chatList .chat-item .chat-info .chat-name { font-weight: 600; }
         #chatList .chat-item .chat-info .chat-last { font-size: 13px; opacity: 0.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
         #chatList .chat-item .chat-time { font-size: 11px; opacity: 0.4; }
 
-        /* Окно сообщений */
         #activeChat { display: none; flex-direction: column; gap: 12px; }
         #activeChat .chat-header { display: flex; justify-content: space-between; align-items: center; }
         #activeChat .chat-header .back-btn { background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; }
         #activeChat .messages-container { height: 320px; overflow-y: auto; background: rgba(0,0,0,0.25); border-radius: 24px; padding: 16px; display: flex; flex-direction: column; gap: 8px; scroll-behavior: smooth; }
         #activeChat .messages-container .msg { display: flex; align-items: flex-start; gap: 10px; animation: fadeIn 0.2s ease; }
-        #activeChat .messages-container .msg .avatar-msg { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #f093fb, #f5576c); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #fff; flex-shrink: 0; }
+        #activeChat .messages-container .msg .avatar-msg { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #f093fb, #f5576c); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #fff; flex-shrink: 0; background-size: cover; }
         #activeChat .messages-container .msg .bubble { background: rgba(255,255,255,0.08); padding: 10px 14px; border-radius: 18px; max-width: 80%; word-wrap: break-word; border-bottom-left-radius: 4px; }
         #activeChat .messages-container .msg.me { flex-direction: row-reverse; }
         #activeChat .messages-container .msg.me .bubble { background: linear-gradient(135deg, #f093fb, #f5576c); color: #fff; border-bottom-left-radius: 18px; border-bottom-right-radius: 4px; }
@@ -108,7 +102,6 @@
         #activeChat .input-area .file-btn:hover { background: rgba(255,255,255,0.2); }
         #activeChat .input-area input[type="file"] { display: none; }
 
-        /* настройки */
         .settings-group { margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 16px; }
         .settings-group .btn { margin-bottom: 10px; }
 
@@ -117,8 +110,7 @@
 </head>
 <body>
 <div class="container" id="app">
-
-    <!-- ========== БЛОК АВТОРИЗАЦИИ ========== -->
+    <!-- АВТОРИЗАЦИЯ -->
     <div id="authBox">
         <div class="logo"><i class="fas fa-bolt"></i><h1>ZING</h1></div>
         <p class="sub">Вход по коду на почту</p>
@@ -152,7 +144,7 @@
         <div class="footer">Безопасно и быстро</div>
     </div>
 
-    <!-- ========== БЛОК ПРОФИЛЯ ========== -->
+    <!-- ПРОФИЛЬ -->
     <div id="profileBox">
         <div class="profile-header">
             <div class="avatar-big" id="profileAvatar">👤</div>
@@ -193,7 +185,7 @@
         </div>
     </div>
 
-    <!-- ========== БЛОК ЧАТА ========== -->
+    <!-- ЧАТ -->
     <div id="chatBox">
         <div class="chat-header">
             <div class="user-info">
@@ -202,18 +194,12 @@
             </div>
             <button class="logout-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Выйти</button>
         </div>
-
-        <!-- Поиск -->
         <div id="searchBox">
             <input type="text" id="searchInput" placeholder="Найти человека по почте...">
             <button id="searchBtn"><i class="fas fa-search"></i></button>
         </div>
         <div id="searchResults"></div>
-
-        <!-- Список чатов -->
         <div id="chatList"></div>
-
-        <!-- Активный чат -->
         <div id="activeChat">
             <div class="chat-header">
                 <button class="back-btn" id="backToChatList"><i class="fas fa-arrow-left"></i></button>
@@ -231,10 +217,7 @@
             </div>
         </div>
     </div>
-
 </div>
-
-<!-- Подключаем основной JavaScript -->
 <script src="app.js"></script>
 </body>
 </html>
