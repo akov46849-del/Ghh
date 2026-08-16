@@ -37,7 +37,6 @@ const profileBox = document.getElementById('profileBox');
 const chatBox = document.getElementById('chatBox');
 const setPasswordBox = document.getElementById('setPasswordBox');
 
-// Вход по паролю
 const loginEmail = document.getElementById('loginEmail');
 const loginPassword = document.getElementById('loginPassword');
 const loginPasswordBtn = document.getElementById('loginPasswordBtn');
@@ -45,7 +44,6 @@ const loginMessage = document.getElementById('loginMessage');
 const loginMessageText = document.getElementById('loginMessageText');
 const resetPasswordBtn = document.getElementById('resetPasswordBtn');
 
-// Вход по коду
 const codeLoginEmail = document.getElementById('codeLoginEmail');
 const sendCodeLoginBtn = document.getElementById('sendCodeLoginBtn');
 const codeLoginStep2 = document.getElementById('codeLoginStep2');
@@ -54,7 +52,6 @@ const verifyCodeLoginBtn = document.getElementById('verifyCodeLoginBtn');
 const codeLoginMessage = document.getElementById('codeLoginMessage');
 const codeLoginMessageText = document.getElementById('codeLoginMessageText');
 
-// РЕГИСТРАЦИЯ
 const registerEmail = document.getElementById('registerEmail');
 const sendCodeRegisterBtn = document.getElementById('sendCodeRegisterBtn');
 const registerStep2 = document.getElementById('registerStep2');
@@ -63,7 +60,6 @@ const verifyRegisterBtn = document.getElementById('verifyRegisterBtn');
 const registerMessage = document.getElementById('registerMessage');
 const registerMessageText = document.getElementById('registerMessageText');
 
-// Установка пароля
 const newPassword = document.getElementById('newPassword');
 const confirmPassword = document.getElementById('confirmPassword');
 const setPasswordBtn = document.getElementById('setPasswordBtn');
@@ -71,7 +67,6 @@ const setPasswordMessage = document.getElementById('setPasswordMessage');
 const setPasswordMessageText = document.getElementById('setPasswordMessageText');
 const passwordOptions = document.getElementById('passwordOptions');
 
-// Профиль
 const profileFirstName = document.getElementById('profileFirstName');
 const profileLastName = document.getElementById('profileLastName');
 const profileGender = document.getElementById('profileGender');
@@ -87,7 +82,6 @@ const showPasswordBtn = document.getElementById('showPasswordBtn');
 const changePasswordBtn = document.getElementById('changePasswordBtn');
 const twoFactorToggle = document.getElementById('twoFactorToggle');
 
-// Чат
 const chatAvatar = document.getElementById('chatAvatar');
 const chatUserName = document.getElementById('chatUserName');
 const logoutBtn = document.getElementById('logoutBtn');
@@ -106,12 +100,22 @@ const backToChatList = document.getElementById('backToChatList');
 const activeChatName = document.getElementById('activeChatName');
 const blockUserBtn = document.getElementById('blockUserBtn');
 
-// Модалка пароля
 const passwordModal = document.getElementById('passwordModal');
 const passwordModalClose = document.getElementById('passwordModalClose');
 const passwordModalCode = document.getElementById('passwordModalCode');
 const passwordModalConfirm = document.getElementById('passwordModalConfirm');
 const passwordModalResult = document.getElementById('passwordModalResult');
+
+// Элементы звонков
+const callBtn = document.getElementById('callBtn');
+const incomingCallModal = document.getElementById('incomingCallModal');
+const incomingCaller = document.getElementById('incomingCaller');
+const acceptCallBtn = document.getElementById('acceptCallBtn');
+const rejectCallBtn = document.getElementById('rejectCallBtn');
+const callContainer = document.getElementById('callContainer');
+const remoteVideo = document.getElementById('remoteVideo');
+const localVideo = document.getElementById('localVideo');
+const hangupBtn = document.getElementById('hangupBtn');
 
 // ============================================================
 // 1. АВТОРИЗАЦИЯ (вкладки)
@@ -127,31 +131,82 @@ document.querySelectorAll('.auth-tabs button').forEach(btn => {
 });
 
 // ============================================================
-// 2. ВХОД ПО ПАРОЛЮ (без изменений, как в предыдущей версии)
+// 2. ВХОД ПО ПАРОЛЮ
 // ============================================================
-// ... (код loginPasswordBtn, resetPasswordBtn – такой же) ...
+loginPasswordBtn.addEventListener('click', () => {
+    const email = loginEmail.value.trim();
+    const pass = loginPassword.value.trim();
+    if (!email || !pass) {
+        showLoginMessage('Введите email и пароль.', false);
+        return;
+    }
+    loginPasswordBtn.disabled = true;
+    loginPasswordBtn.innerHTML = '<div class="spinner"></div>';
 
-// ============================================================
-// 3. ВХОД ПО КОДУ (без изменений)
-// ============================================================
-// ... (код sendCodeLoginBtn, verifyCodeLoginBtn) ...
+    auth.signInWithEmailAndPassword(email, pass)
+        .then(userCred => {
+            const uid = userCred.user.uid;
+            return db.ref('users/' + uid + '/twoFactorEnabled').once('value')
+                .then(snapshot => {
+                    const twoFactor = snapshot.val() || false;
+                    if (twoFactor) {
+                        return send2FACode(email)
+                            .then(() => {
+                                const code = prompt('Введите код из письма для 2FA:');
+                                if (!code) {
+                                    auth.signOut();
+                                    showLoginMessage('Вход отменён.', false);
+                                    return;
+                                }
+                                return verify2FACode(email, code)
+                                    .then(valid => {
+                                        if (valid) {
+                                            showLoginMessage('✅ Вход выполнен!', true);
+                                        } else {
+                                            auth.signOut();
+                                            showLoginMessage('Неверный код.', false);
+                                        }
+                                    });
+                            });
+                    } else {
+                        showLoginMessage('✅ Вход выполнен!', true);
+                    }
+                });
+        })
+        .catch(err => {
+            showLoginMessage('Ошибка: ' + err.message, false);
+        })
+        .finally(() => {
+            loginPasswordBtn.disabled = false;
+            loginPasswordBtn.innerHTML = 'Войти';
+        });
+});
 
-// ============================================================
-// 4. РЕГИСТРАЦИЯ (ИСПРАВЛЕННАЯ С ЛОГАМИ)
-// ============================================================
-console.log('✅ Регистрация: скрипт загружен');
-
-sendCodeRegisterBtn.addEventListener('click', () => {
-    console.log('🔵 Кнопка "Отправить код" нажата');
-    const email = registerEmail.value.trim();
-    console.log('📧 Email:', email);
+resetPasswordBtn.addEventListener('click', () => {
+    const email = loginEmail.value.trim();
     if (!email || !email.includes('@')) {
-        showRegisterMessage('Введите корректный email.', false);
-        console.log('❌ Неверный email');
+        showLoginMessage('Введите email для сброса.', false);
+        return;
+    }
+    auth.sendPasswordResetEmail(email)
+        .then(() => {
+            showLoginMessage('Ссылка для сброса отправлена на почту.', true);
+        })
+        .catch(err => {
+            showLoginMessage('Ошибка: ' + err.message, false);
+        });
+});
+
+// ============================================================
+// 3. ВХОД ПО КОДУ
+// ============================================================
+sendCodeLoginBtn.addEventListener('click', () => {
+    const email = codeLoginEmail.value.trim();
+    if (!email || !email.includes('@')) {
+        showCodeLoginMessage('Введите корректный email.', false);
         return;
     }
     currentEmail = email;
-    console.log('📤 Отправляем запрос в очередь...');
     const url = `${FIREBASE_DB_URL}/emailQueue.json`;
     const data = { email, status: 'pending', timestamp: Date.now() };
     fetch(url, {
@@ -160,70 +215,125 @@ sendCodeRegisterBtn.addEventListener('click', () => {
         body: JSON.stringify(data)
     })
     .then(res => {
-        console.log('📥 Ответ от сервера:', res.status);
-        if (!res.ok) throw new Error('Ошибка отправки: ' + res.status);
+        if (!res.ok) throw new Error('Ошибка отправки');
         return res.json();
     })
     .then(() => {
-        console.log('✅ Запрос добавлен в очередь');
+        showCodeLoginMessage('Код отправлен на почту!', true);
+        codeLoginStep2.style.display = 'block';
+    })
+    .catch(err => {
+        showCodeLoginMessage('Ошибка: ' + err.message, false);
+    });
+});
+
+verifyCodeLoginBtn.addEventListener('click', () => {
+    const code = codeLoginInput.value.trim();
+    if (!code || code.length !== 6) {
+        showCodeLoginMessage('Введите 6-значный код.', false);
+        return;
+    }
+    const emailKey = currentEmail.replace(/\./g, '_');
+    const url = `${FIREBASE_DB_URL}/codes/${emailKey}.json`;
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            if (!data || data.code !== code || Date.now() - data.createdAt > 10*60*1000) {
+                showCodeLoginMessage('Неверный или истёкший код.', false);
+                return;
+            }
+            fetch(url, { method: 'DELETE' }).catch(() => {});
+            db.ref('users').orderByChild('email').equalTo(currentEmail).once('value')
+                .then(snapshot => {
+                    const userData = snapshot.val();
+                    if (!userData) {
+                        showCodeLoginMessage('Пользователь не найден. Зарегистрируйтесь.', false);
+                        return;
+                    }
+                    const uid = Object.keys(userData)[0];
+                    const savedPassword = userData[uid].password;
+                    if (!savedPassword) {
+                        showCodeLoginMessage('Пароль не сохранён. Используйте сброс.', false);
+                        return;
+                    }
+                    return auth.signInWithEmailAndPassword(currentEmail, savedPassword);
+                })
+                .then(() => {
+                    showCodeLoginMessage('✅ Вход выполнен!', true);
+                })
+                .catch(err => {
+                    showCodeLoginMessage('Ошибка: ' + err.message, false);
+                });
+        })
+        .catch(err => {
+            showCodeLoginMessage('Ошибка: ' + err.message, false);
+        });
+});
+
+// ============================================================
+// 4. РЕГИСТРАЦИЯ
+// ============================================================
+sendCodeRegisterBtn.addEventListener('click', () => {
+    const email = registerEmail.value.trim();
+    if (!email || !email.includes('@')) {
+        showRegisterMessage('Введите корректный email.', false);
+        return;
+    }
+    currentEmail = email;
+    const url = `${FIREBASE_DB_URL}/emailQueue.json`;
+    const data = { email, status: 'pending', timestamp: Date.now() };
+    fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(res => {
+        if (!res.ok) throw new Error('Ошибка отправки');
+        return res.json();
+    })
+    .then(() => {
         showRegisterMessage('Код отправлен на почту!', true);
         registerStep2.style.display = 'block';
     })
     .catch(err => {
-        console.error('❌ Ошибка fetch:', err);
         showRegisterMessage('Ошибка: ' + err.message, false);
     });
 });
 
 verifyRegisterBtn.addEventListener('click', () => {
-    console.log('🔵 Кнопка "Зарегистрироваться" нажата');
     const code = registerCodeInput.value.trim();
-    console.log('🔑 Код:', code);
     if (!code || code.length !== 6) {
         showRegisterMessage('Введите 6-значный код.', false);
         return;
     }
     const emailKey = currentEmail.replace(/\./g, '_');
     const url = `${FIREBASE_DB_URL}/codes/${emailKey}.json`;
-    console.log('📤 Проверяем код по URL:', url);
     fetch(url)
-        .then(res => {
-            console.log('📥 Ответ проверки кода:', res.status);
-            if (!res.ok) throw new Error('Ошибка получения кода');
-            return res.json();
-        })
+        .then(res => res.json())
         .then(data => {
-            console.log('📦 Данные кода:', data);
             if (!data || data.code !== code || Date.now() - data.createdAt > 10*60*1000) {
                 showRegisterMessage('Неверный или истёкший код.', false);
                 return;
             }
-            console.log('✅ Код верен');
             fetch(url, { method: 'DELETE' }).catch(() => {});
-            // Проверяем, не зарегистрирован ли уже этот email
             auth.fetchSignInMethodsForEmail(currentEmail)
                 .then(methods => {
-                    console.log('📋 Методы входа для email:', methods);
                     if (methods.length > 0) {
                         showRegisterMessage('Этот email уже зарегистрирован. Войдите по паролю.', false);
                         return;
                     }
                     const tempPassword = Math.random().toString(36).slice(-8);
-                    console.log('🔐 Создаём пользователя с временным паролем');
                     return auth.createUserWithEmailAndPassword(currentEmail, tempPassword)
                         .then(userCred => {
-                            console.log('✅ Пользователь создан:', userCred.user.uid);
                             tempUserForPassword = userCred.user;
                             showSetPassword(userCred.user);
                         });
                 })
                 .catch(err => {
-                    console.error('❌ Ошибка проверки существования:', err);
                     showRegisterMessage('Ошибка: ' + err.message, false);
                 });
         })
         .catch(err => {
-            console.error('❌ Ошибка fetch кода:', err);
             showRegisterMessage('Ошибка: ' + err.message, false);
         });
 });
@@ -232,7 +342,6 @@ verifyRegisterBtn.addEventListener('click', () => {
 // 5. УСТАНОВКА ПАРОЛЯ
 // ============================================================
 function showSetPassword(user) {
-    console.log('🔐 Переход к установке пароля для пользователя:', user.uid);
     authBox.style.display = 'none';
     profileBox.style.display = 'none';
     chatBox.style.display = 'none';
@@ -522,138 +631,7 @@ deleteAccountBtn.addEventListener('click', () => {
 closeProfileBtn.addEventListener('click', closeProfile);
 
 // ============================================================
-// 7. ЧАТ (весь код из предыдущей версии)
-// ============================================================
-// ... (функции showChat, updateChatHeader, loadChatList, openChat, loadMessages, sendMessage, fileBtn, deleteMessage, backToChatList) ...
-// Я не буду повторять их здесь, чтобы не перегружать ответ. Они уже были включены в финальный код.
-
-// ============================================================
-// 8. ПОИСК И ЗАЯВКИ
-// ============================================================
-// ... (searchBtn, sendFriendRequest) ...
-
-// ============================================================
-// 9. БЛОКИРОВКА
-// ============================================================
-// ... (blockUser) ...
-
-// ============================================================
-// 10. ВСПОМОГАТЕЛЬНЫЕ
-// ============================================================
-function showLoginMessage(text, success) {
-    loginMessage.style.display = 'flex';
-    loginMessage.className = 'message show' + (success ? ' success' : '');
-    loginMessage.querySelector('.icon').textContent = success ? '✅' : '⚠️';
-    loginMessageText.textContent = text;
-    setTimeout(() => loginMessage.style.display = 'none', 5000);
-}
-
-function showCodeLoginMessage(text, success) {
-    codeLoginMessage.style.display = 'flex';
-    codeLoginMessage.className = 'message show' + (success ? ' success' : '');
-    codeLoginMessage.querySelector('.icon').textContent = success ? '✅' : '⚠️';
-    codeLoginMessageText.textContent = text;
-    setTimeout(() => codeLoginMessage.style.display = 'none', 5000);
-}
-
-function showRegisterMessage(text, success) {
-    registerMessage.style.display = 'flex';
-    registerMessage.className = 'message show' + (success ? ' success' : '');
-    registerMessage.querySelector('.icon').textContent = success ? '✅' : '⚠️';
-    registerMessageText.textContent = text;
-    setTimeout(() => registerMessage.style.display = 'none', 5000);
-}
-
-function showSetPasswordMessage(text, success) {
-    setPasswordMessage.style.display = 'flex';
-    setPasswordMessage.className = 'message show' + (success ? ' success' : '');
-    setPasswordMessage.querySelector('.icon').textContent = success ? '✅' : '⚠️';
-    setPasswordMessageText.textContent = text;
-    setTimeout(() => setPasswordMessage.style.display = 'none', 5000);
-}
-
-function showProfileMessage(text, success) {
-    profileMessage.style.display = 'flex';
-    profileMessage.className = 'message show' + (success ? ' success' : '');
-    profileMessage.querySelector('.icon').textContent = success ? '✅' : '⚠️';
-    profileMessageText.textContent = text;
-    setTimeout(() => profileMessage.style.display = 'none', 5000);
-}
-
-function send2FACode(email) {
-    const url = `${FIREBASE_DB_URL}/emailQueue.json`;
-    const data = { email, status: 'pending', timestamp: Date.now() };
-    return fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-    }).then(res => res.json());
-}
-
-function verify2FACode(email, code) {
-    const emailKey = email.replace(/\./g, '_');
-    const url = `${FIREBASE_DB_URL}/codes/${emailKey}.json`;
-    return fetch(url)
-        .then(res => res.json())
-        .then(data => {
-            if (!data || data.code !== code || Date.now() - data.createdAt > 10*60*1000) {
-                return false;
-            }
-            fetch(url, { method: 'DELETE' }).catch(() => {});
-            return true;
-        });
-}
-
-// ============================================================
-// 11. СОСТОЯНИЕ АВТОРИЗАЦИИ
-// ============================================================
-auth.onAuthStateChanged((user) => {
-    if (user) {
-        currentUser = user;
-        db.ref('users/' + user.uid).once('value')
-            .then(snapshot => {
-                const data = snapshot.val();
-                if (data) {
-                    currentUserProfile = data;
-                    if (!data.password) {
-                        showSetPassword(user);
-                    } else {
-                        showChat();
-                    }
-                } else {
-                    showSetPassword(user);
-                }
-            })
-            .catch(() => {
-                showSetPassword(user);
-            });
-    } else {
-        authBox.style.display = 'flex';
-        profileBox.style.display = 'none';
-        chatBox.style.display = 'none';
-        setPasswordBox.style.display = 'none';
-        if (messagesListener) messagesListener.off();
-        currentUser = null;
-        currentUserProfile = null;
-    }
-});
-
-// ============================================================
-// 12. ВЫХОД
-// ============================================================
-logoutBtn.addEventListener('click', () => {
-    auth.signOut();
-});
-
-settingsBtn.addEventListener('click', openProfile);
-
-// ============================================================
-// 13. ЗВОНКИ (WebRTC)
-// ============================================================
-// ... (код звонков, который я дал ранее) ...
-
-// ============================================================
-// 14. ЧАТ (полный код, чтобы не было пропусков)
+// 7. ЧАТ
 // ============================================================
 function showChat() {
     authBox.style.display = 'none';
@@ -740,6 +718,8 @@ function openChat(chatId, partnerUid, partnerData) {
             blockUser(partnerUid);
         }
     };
+    callBtn.style.display = 'inline-block';
+    callBtn.onclick = () => startCall(partnerUid, partnerData.firstName);
     loadMessages(chatId);
 }
 
@@ -894,10 +874,11 @@ backToChatList.addEventListener('click', () => {
     document.getElementById('searchBox').style.display = 'flex';
     currentChatId = null;
     currentChatPartnerUid = null;
+    callBtn.style.display = 'none';
 });
 
 // ============================================================
-// 15. ПОИСК И ЗАЯВКИ
+// 8. ПОИСК И ЗАЯВКИ
 // ============================================================
 searchBtn.addEventListener('click', () => {
     const query = searchInput.value.trim().toLowerCase();
@@ -959,7 +940,7 @@ function sendFriendRequest(toUid) {
 }
 
 // ============================================================
-// 16. БЛОКИРОВКА
+// 9. БЛОКИРОВКА
 // ============================================================
 function blockUser(uid) {
     const blockedList = currentUserProfile.blocked || [];
@@ -980,29 +961,79 @@ function blockUser(uid) {
 }
 
 // ============================================================
-// 17. ЗВОНКИ (WebRTC)
+// 10. ВСПОМОГАТЕЛЬНЫЕ
 // ============================================================
-const callBtn = document.getElementById('callBtn');
-const incomingCallModal = document.getElementById('incomingCallModal');
-const incomingCaller = document.getElementById('incomingCaller');
-const acceptCallBtn = document.getElementById('acceptCallBtn');
-const rejectCallBtn = document.getElementById('rejectCallBtn');
-const callContainer = document.getElementById('callContainer');
-const remoteVideo = document.getElementById('remoteVideo');
-const localVideo = document.getElementById('localVideo');
-const hangupBtn = document.getElementById('hangupBtn');
+function showLoginMessage(text, success) {
+    loginMessage.style.display = 'flex';
+    loginMessage.className = 'message show' + (success ? ' success' : '');
+    loginMessage.querySelector('.icon').textContent = success ? '✅' : '⚠️';
+    loginMessageText.textContent = text;
+    setTimeout(() => loginMessage.style.display = 'none', 5000);
+}
 
+function showCodeLoginMessage(text, success) {
+    codeLoginMessage.style.display = 'flex';
+    codeLoginMessage.className = 'message show' + (success ? ' success' : '');
+    codeLoginMessage.querySelector('.icon').textContent = success ? '✅' : '⚠️';
+    codeLoginMessageText.textContent = text;
+    setTimeout(() => codeLoginMessage.style.display = 'none', 5000);
+}
+
+function showRegisterMessage(text, success) {
+    registerMessage.style.display = 'flex';
+    registerMessage.className = 'message show' + (success ? ' success' : '');
+    registerMessage.querySelector('.icon').textContent = success ? '✅' : '⚠️';
+    registerMessageText.textContent = text;
+    setTimeout(() => registerMessage.style.display = 'none', 5000);
+}
+
+function showSetPasswordMessage(text, success) {
+    setPasswordMessage.style.display = 'flex';
+    setPasswordMessage.className = 'message show' + (success ? ' success' : '');
+    setPasswordMessage.querySelector('.icon').textContent = success ? '✅' : '⚠️';
+    setPasswordMessageText.textContent = text;
+    setTimeout(() => setPasswordMessage.style.display = 'none', 5000);
+}
+
+function showProfileMessage(text, success) {
+    profileMessage.style.display = 'flex';
+    profileMessage.className = 'message show' + (success ? ' success' : '');
+    profileMessage.querySelector('.icon').textContent = success ? '✅' : '⚠️';
+    profileMessageText.textContent = text;
+    setTimeout(() => profileMessage.style.display = 'none', 5000);
+}
+
+function send2FACode(email) {
+    const url = `${FIREBASE_DB_URL}/emailQueue.json`;
+    const data = { email, status: 'pending', timestamp: Date.now() };
+    return fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    }).then(res => res.json());
+}
+
+function verify2FACode(email, code) {
+    const emailKey = email.replace(/\./g, '_');
+    const url = `${FIREBASE_DB_URL}/codes/${emailKey}.json`;
+    return fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            if (!data || data.code !== code || Date.now() - data.createdAt > 10*60*1000) {
+                return false;
+            }
+            fetch(url, { method: 'DELETE' }).catch(() => {});
+            return true;
+        });
+}
+
+// ============================================================
+// 11. ЗВОНКИ (WebRTC)
+// ============================================================
 let peerConnection = null;
 let localStream = null;
 let currentCallId = null;
 let callInitiator = false;
-
-const originalOpenChat = openChat;
-openChat = function(chatId, partnerUid, partnerData) {
-    originalOpenChat(chatId, partnerUid, partnerData);
-    callBtn.style.display = 'inline-block';
-    callBtn.onclick = () => startCall(partnerUid, partnerData.firstName);
-};
 
 async function startCall(partnerUid, partnerName) {
     if (!currentUser) return;
@@ -1131,6 +1162,7 @@ function showCallUI() {
 
 hangupBtn.addEventListener('click', endCall);
 
+// Слушаем входящие звонки
 auth.onAuthStateChanged(user => {
     if (user) {
         const callsRef = db.ref('calls');
@@ -1147,18 +1179,59 @@ auth.onAuthStateChanged(user => {
     }
 });
 
-logoutBtn.addEventListener('click', () => {
-    if (peerConnection) {
-        peerConnection.close();
-        peerConnection = null;
+// ============================================================
+// 12. СОСТОЯНИЕ АВТОРИЗАЦИИ
+// ============================================================
+auth.onAuthStateChanged((user) => {
+    if (user) {
+        currentUser = user;
+        db.ref('users/' + user.uid).once('value')
+            .then(snapshot => {
+                const data = snapshot.val();
+                if (data) {
+                    currentUserProfile = data;
+                    if (!data.password) {
+                        showSetPassword(user);
+                    } else {
+                        showChat();
+                    }
+                } else {
+                    showSetPassword(user);
+                }
+            })
+            .catch(() => {
+                showSetPassword(user);
+            });
+    } else {
+        authBox.style.display = 'flex';
+        profileBox.style.display = 'none';
+        chatBox.style.display = 'none';
+        setPasswordBox.style.display = 'none';
+        if (messagesListener) messagesListener.off();
+        currentUser = null;
+        currentUserProfile = null;
+        // Закрываем звонки
+        if (peerConnection) {
+            peerConnection.close();
+            peerConnection = null;
+        }
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+            localStream = null;
+        }
+        callContainer.style.display = 'none';
+        remoteVideo.srcObject = null;
+        localVideo.srcObject = null;
+        currentCallId = null;
+        callInitiator = false;
     }
-    if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-        localStream = null;
-    }
-    callContainer.style.display = 'none';
-    remoteVideo.srcObject = null;
-    localVideo.srcObject = null;
-    currentCallId = null;
-    callInitiator = false;
 });
+
+// ============================================================
+// 13. ВЫХОД
+// ============================================================
+logoutBtn.addEventListener('click', () => {
+    auth.signOut();
+});
+
+settingsBtn.addEventListener('click', openProfile);
