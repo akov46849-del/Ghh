@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ZING — мессенджер</title>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -12,21 +12,30 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', sans-serif; background: linear-gradient(145deg, #0f0c29, #302b63, #24243e); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
-        .container { background: rgba(255,255,255,0.06); backdrop-filter: blur(18px); border-radius: 40px; padding: 40px 36px; max-width: 700px; width: 100%; box-shadow: 0 30px 60px -12px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.06); max-height: 90vh; overflow-y: auto; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(145deg, #0f0c29, #302b63, #24243e); display: flex; justify-content: center; align-items: center; height: 100vh; padding: 0; }
+        .container { background: rgba(255,255,255,0.06); backdrop-filter: blur(18px); border-radius: 0; padding: 20px 24px; max-width: 100%; width: 100%; height: 100vh; max-height: 100vh; box-shadow: none; border: none; display: flex; flex-direction: column; overflow: hidden; }
         .logo { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
         .logo i { font-size: 32px; background: linear-gradient(135deg, #f093fb, #f5576c); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .logo h1 { font-size: 32px; font-weight: 800; background: linear-gradient(135deg, #f093fb, #f5576c); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .sub { color: rgba(255,255,255,0.4); font-size: 14px; margin-bottom: 28px; }
-        .input-group { margin-bottom: 18px; }
+        .sub { color: rgba(255,255,255,0.4); font-size: 14px; margin-bottom: 16px; }
+        .input-group { margin-bottom: 16px; }
         .input-group label { display: block; color: rgba(255,255,255,0.7); font-size: 13px; font-weight: 500; margin-bottom: 6px; }
-        .input-group input, .input-group select, .input-group textarea { width: 100%; padding: 14px 16px; border-radius: 20px; border: 1.5px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.05); color: #fff; font-size: 15px; outline: none; transition: 0.3s; }
-        .input-group input:focus, .input-group select:focus, .input-group textarea:focus { border-color: #f5576c; background: rgba(255,255,255,0.08); box-shadow: 0 0 0 4px rgba(245,87,108,0.15); }
+        .input-group input, .input-group select, .input-group textarea {
+            width: 100%; padding: 14px 16px; border-radius: 20px; border: 1.5px solid rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.05); color: #fff; font-size: 15px; outline: none; transition: 0.3s;
+        }
+        .input-group input:focus, .input-group select:focus, .input-group textarea:focus {
+            border-color: #f5576c; background: rgba(255,255,255,0.08); box-shadow: 0 0 0 4px rgba(245,87,108,0.15);
+        }
         .input-group input::placeholder, .input-group textarea::placeholder { color: rgba(255,255,255,0.25); }
         .input-group select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='white' stroke-width='1.5' fill='none'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 16px center; color: rgba(255,255,255,0.85); }
         .input-group select option { background: #24243e; color: #fff; }
-        .input-group .avatar-preview { width: 80px; height: 80px; border-radius: 50%; background: rgba(255,255,255,0.05); border: 2px dashed rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 32px; color: rgba(255,255,255,0.3); margin-top: 8px; overflow: hidden; }
+        .input-group .avatar-preview { width: 80px; height: 80px; border-radius: 50%; background: rgba(255,255,255,0.05); border: 2px dashed rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 32px; color: rgba(255,255,255,0.3); margin-top: 8px; overflow: hidden; position: relative; cursor: pointer; }
         .input-group .avatar-preview img { width: 100%; height: 100%; object-fit: cover; }
+        .input-group .avatar-preview .upload-overlay { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.5); color: #fff; font-size: 10px; text-align: center; padding: 4px; border-radius: 0 0 50% 50%; opacity: 0; transition: 0.3s; }
+        .input-group .avatar-preview:hover .upload-overlay { opacity: 1; }
+        .input-group .avatar-preview input[type="file"] { display: none; }
         .btn { width: 100%; padding: 14px; border: none; border-radius: 60px; background: linear-gradient(135deg, #f093fb, #f5576c); color: #fff; font-size: 17px; font-weight: 600; cursor: pointer; transition: 0.3s; display: flex; align-items: center; justify-content: center; gap: 10px; font-family: 'Inter', sans-serif; }
         .btn:hover { transform: scale(1.02); box-shadow: 0 8px 30px rgba(245,87,108,0.4); }
         .btn:active { transform: scale(0.97); }
@@ -35,152 +44,248 @@
         .btn-secondary:hover { background: rgba(255,255,255,0.15); box-shadow: none; }
         .btn-danger { background: #f5576c; }
         .btn-danger:hover { background: #e0445a; }
+        .btn-sm { padding: 8px 16px; font-size: 14px; width: auto; }
         .spinner { width: 22px; height: 22px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.2); border-top-color: #fff; animation: spin 0.7s linear infinite; display: inline-block; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .message { margin-top: 16px; padding: 12px 16px; border-radius: 16px; background: rgba(255,255,255,0.05); border-left: 4px solid #f5576c; color: rgba(255,255,255,0.9); font-size: 14px; display: none; align-items: center; gap: 12px; animation: fadeIn 0.3s ease; }
+        .message { margin-top: 12px; padding: 12px 16px; border-radius: 16px; background: rgba(255,255,255,0.05); border-left: 4px solid #f5576c; color: rgba(255,255,255,0.9); font-size: 14px; display: none; align-items: center; gap: 12px; animation: fadeIn 0.3s ease; }
         .message.show { display: flex; }
         .message.success { border-left-color: #4ade80; }
         .message .icon { font-size: 18px; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
-        .footer { margin-top: 24px; text-align: center; color: rgba(255,255,255,0.15); font-size: 12px; }
-        #authBox, #profileBox, #chatBox { display: none; animation: fadeIn 0.4s ease; }
-        #authBox { display: block; }
-        #profileBox .profile-header { text-align: center; margin-bottom: 24px; }
-        #profileBox .profile-header .avatar-big { width: 96px; height: 96px; border-radius: 50%; background: linear-gradient(135deg, #f093fb, #f5576c); margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; font-size: 40px; font-weight: 700; color: #fff; box-shadow: 0 12px 30px rgba(245,87,108,0.3); }
-        #profileBox .profile-header p { color: rgba(255,255,255,0.5); font-size: 14px; }
+        .footer { margin-top: 20px; text-align: center; color: rgba(255,255,255,0.15); font-size: 12px; }
+
+        /* Стили для вкладок входа */
+        .auth-tabs { display: flex; gap: 10px; margin-bottom: 16px; }
+        .auth-tabs button { flex: 1; padding: 10px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.6); border-radius: 60px; cursor: pointer; transition: 0.3s; font-size: 14px; font-weight: 500; }
+        .auth-tabs button.active { background: linear-gradient(135deg, #f093fb, #f5576c); color: #fff; border-color: transparent; }
+        .auth-tabs button:hover { background: rgba(255,255,255,0.08); color: #fff; }
+        .auth-panel { display: none; }
+        .auth-panel.active { display: block; }
+
+        /* Парольные блоки */
+        .password-generator { background: rgba(255,255,255,0.04); border-radius: 16px; padding: 16px; margin: 12px 0; }
+        .password-generator .options { display: flex; gap: 8px; flex-wrap: wrap; }
+        .password-generator .options button { flex: 1; min-width: 80px; padding: 8px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: #fff; cursor: pointer; transition: 0.2s; font-size: 12px; }
+        .password-generator .options button:hover { background: rgba(255,255,255,0.12); border-color: #f5576c; }
+        .password-generator .options button.selected { background: linear-gradient(135deg, #f093fb, #f5576c); border-color: transparent; }
+
+        #authBox, #profileBox, #chatBox, #setPasswordBox { display: none; flex-direction: column; height: 100%; }
+        #authBox { display: flex; justify-content: center; }
+        #profileBox { flex: 1; overflow-y: auto; }
+        #chatBox { flex: 1; }
+        #setPasswordBox { flex: 1; overflow-y: auto; justify-content: center; }
+
         .mt-10 { margin-top: 10px; }
-        #step2 { display: none; }
+        .hidden { display: none; }
 
         /* Чат */
-        #chatBox .chat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
-        #chatBox .chat-header .user-info { display: flex; align-items: center; gap: 12px; }
-        #chatBox .chat-header .user-info .avatar-small { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #f093fb, #f5576c); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; color: #fff; flex-shrink: 0; }
-        #chatBox .chat-header .user-info .name { color: #fff; font-weight: 600; font-size: 16px; }
-        #chatBox .chat-header .user-info .name small { font-weight: 400; font-size: 12px; color: rgba(255,255,255,0.4); display: block; }
-        #chatBox .chat-header .logout-btn { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); color: rgba(255,255,255,0.5); padding: 8px 18px; border-radius: 40px; cursor: pointer; font-size: 13px; transition: 0.3s; font-family: 'Inter', sans-serif; }
-        #chatBox .chat-header .logout-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+        .chat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-shrink: 0; padding: 4px 0; }
+        .chat-header .user-info { display: flex; align-items: center; gap: 12px; }
+        .chat-header .user-info .avatar-small { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #f093fb, #f5576c); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; color: #fff; flex-shrink: 0; background-size: cover; background-position: center; }
+        .chat-header .user-info .name { color: #fff; font-weight: 600; font-size: 16px; }
+        .chat-header .user-info .name small { font-weight: 400; font-size: 12px; color: rgba(255,255,255,0.4); display: block; }
+        .chat-header .actions { display: flex; gap: 8px; align-items: center; }
+        .chat-header .actions button { background: rgba(255,255,255,0.06); border: none; color: rgba(255,255,255,0.6); padding: 8px 12px; border-radius: 30px; cursor: pointer; font-size: 16px; transition: 0.2s; display: flex; align-items: center; gap: 6px; }
+        .chat-header .actions button:hover { background: rgba(255,255,255,0.12); color: #fff; }
+        .chat-header .actions .logout-btn { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); color: rgba(255,255,255,0.5); padding: 6px 14px; border-radius: 30px; cursor: pointer; font-size: 13px; transition: 0.3s; }
+        .chat-header .actions .logout-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
 
-        #searchBox { display: flex; gap: 10px; margin-bottom: 16px; }
-        #searchBox input { flex: 1; padding: 12px 18px; border-radius: 60px; border: 1.5px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); color: #fff; font-size: 15px; outline: none; transition: 0.3s; font-family: 'Inter', sans-serif; }
+        #searchBox { display: flex; gap: 10px; margin-bottom: 12px; flex-shrink: 0; }
+        #searchBox input { flex: 1; padding: 10px 16px; border-radius: 60px; border: 1.5px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); color: #fff; font-size: 14px; outline: none; transition: 0.3s; font-family: 'Inter', sans-serif; }
         #searchBox input:focus { border-color: #f5576c; background: rgba(255,255,255,0.08); }
-        #searchBox button { padding: 12px 20px; border: none; border-radius: 60px; background: linear-gradient(135deg, #f093fb, #f5576c); color: #fff; font-weight: 600; cursor: pointer; font-size: 15px; }
-        #searchResults { max-height: 200px; overflow-y: auto; margin-bottom: 16px; background: rgba(0,0,0,0.2); border-radius: 20px; padding: 12px; display: none; }
+        #searchBox button { padding: 10px 16px; border: none; border-radius: 60px; background: linear-gradient(135deg, #f093fb, #f5576c); color: #fff; font-weight: 600; cursor: pointer; font-size: 14px; }
+        #searchResults { max-height: 200px; overflow-y: auto; margin-bottom: 12px; background: rgba(0,0,0,0.2); border-radius: 20px; padding: 12px; display: none; flex-shrink: 0; }
         #searchResults .result-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 12px; margin-bottom: 8px; }
 
-        #chatList { max-height: 300px; overflow-y: auto; margin-bottom: 16px; background: rgba(0,0,0,0.2); border-radius: 20px; padding: 12px; }
+        #chatList { flex: 1; overflow-y: auto; margin-bottom: 12px; background: rgba(0,0,0,0.2); border-radius: 20px; padding: 12px; }
         #chatList .chat-item { display: flex; align-items: center; gap: 12px; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 16px; margin-bottom: 8px; cursor: pointer; transition: 0.2s; }
         #chatList .chat-item:hover { background: rgba(255,255,255,0.1); }
-        #chatList .chat-item .chat-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #f093fb, #f5576c); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; flex-shrink: 0; background-size: cover; }
+        #chatList .chat-item .chat-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #f093fb, #f5576c); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; flex-shrink: 0; background-size: cover; background-position: center; }
         #chatList .chat-item .chat-info { flex: 1; color: #fff; }
         #chatList .chat-item .chat-info .chat-name { font-weight: 600; }
         #chatList .chat-item .chat-info .chat-last { font-size: 13px; opacity: 0.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
         #chatList .chat-item .chat-time { font-size: 11px; opacity: 0.4; }
 
-        #activeChat { display: none; flex-direction: column; gap: 12px; }
-        #activeChat .chat-header { display: flex; justify-content: space-between; align-items: center; }
-        #activeChat .chat-header .back-btn { background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; }
-        #activeChat .messages-container { height: 320px; overflow-y: auto; background: rgba(0,0,0,0.25); border-radius: 24px; padding: 16px; display: flex; flex-direction: column; gap: 8px; scroll-behavior: smooth; }
-        #activeChat .messages-container .msg { display: flex; align-items: flex-start; gap: 10px; animation: fadeIn 0.2s ease; }
-        #activeChat .messages-container .msg .avatar-msg { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #f093fb, #f5576c); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #fff; flex-shrink: 0; background-size: cover; }
-        #activeChat .messages-container .msg .bubble { background: rgba(255,255,255,0.08); padding: 10px 14px; border-radius: 18px; max-width: 80%; word-wrap: break-word; border-bottom-left-radius: 4px; }
-        #activeChat .messages-container .msg.me { flex-direction: row-reverse; }
-        #activeChat .messages-container .msg.me .bubble { background: linear-gradient(135deg, #f093fb, #f5576c); color: #fff; border-bottom-left-radius: 18px; border-bottom-right-radius: 4px; }
-        #activeChat .messages-container .msg .bubble .sender { font-weight: 600; font-size: 12px; opacity: 0.6; margin-bottom: 2px; }
-        #activeChat .messages-container .msg.me .bubble .sender { opacity: 0.8; }
-        #activeChat .messages-container .msg .bubble .text { font-size: 14px; line-height: 1.4; }
-        #activeChat .messages-container .msg .bubble .time { font-size: 10px; opacity: 0.4; margin-top: 4px; text-align: right; }
-        #activeChat .messages-container .msg .bubble .image-msg { max-width: 200px; border-radius: 12px; margin-top: 4px; }
-        #activeChat .messages-container .empty { color: rgba(255,255,255,0.2); text-align: center; padding: 40px 0; font-size: 14px; }
-        #activeChat .input-area { display: flex; gap: 10px; align-items: center; }
-        #activeChat .input-area input { flex: 1; padding: 12px 18px; border-radius: 60px; border: 1.5px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); color: #fff; font-size: 15px; outline: none; transition: 0.3s; font-family: 'Inter', sans-serif; }
-        #activeChat .input-area input:focus { border-color: #f5576c; background: rgba(255,255,255,0.08); }
-        #activeChat .input-area input::placeholder { color: rgba(255,255,255,0.25); }
-        #activeChat .input-area button { padding: 12px 20px; border: none; border-radius: 60px; background: linear-gradient(135deg, #f093fb, #f5576c); color: #fff; font-weight: 600; cursor: pointer; font-size: 15px; display: flex; align-items: center; gap: 8px; font-family: 'Inter', sans-serif; }
-        #activeChat .input-area button:hover { transform: scale(1.05); box-shadow: 0 8px 24px rgba(245,87,108,0.3); }
-        #activeChat .input-area .file-btn { background: rgba(255,255,255,0.1); }
-        #activeChat .input-area .file-btn:hover { background: rgba(255,255,255,0.2); }
-        #activeChat .input-area input[type="file"] { display: none; }
+        #activeChat { display: none; flex-direction: column; flex: 1; }
+        #activeChat .chat-header { flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        #activeChat .chat-header .back-btn { background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; padding: 4px 8px; }
+        #activeChat .chat-header .chat-title { color: #fff; font-weight: 600; font-size: 16px; }
+        #activeChat .chat-header .chat-actions { display: flex; gap: 6px; }
+        #activeChat .chat-header .chat-actions button { background: rgba(255,255,255,0.06); border: none; color: rgba(255,255,255,0.6); padding: 4px 10px; border-radius: 30px; cursor: pointer; font-size: 12px; transition: 0.2s; }
+        #activeChat .chat-header .chat-actions button:hover { background: rgba(255,255,255,0.12); color: #fff; }
+
+        #messagesContainer { flex: 1; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 24px; padding: 16px; display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; min-height: 0; }
+        #messagesContainer .msg { display: flex; align-items: flex-start; gap: 10px; animation: fadeIn 0.2s ease; }
+        #messagesContainer .msg .avatar-msg { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #f093fb, #f5576c); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #fff; flex-shrink: 0; background-size: cover; background-position: center; }
+        #messagesContainer .msg .bubble { background: rgba(255,255,255,0.08); padding: 10px 14px; border-radius: 18px; max-width: 80%; word-wrap: break-word; border-bottom-left-radius: 4px; }
+        #messagesContainer .msg.me { flex-direction: row-reverse; }
+        #messagesContainer .msg.me .bubble { background: linear-gradient(135deg, #f093fb, #f5576c); color: #fff; border-bottom-left-radius: 18px; border-bottom-right-radius: 4px; }
+        #messagesContainer .msg .bubble .sender { font-weight: 600; font-size: 12px; opacity: 0.6; margin-bottom: 2px; }
+        #messagesContainer .msg.me .bubble .sender { opacity: 0.8; }
+        #messagesContainer .msg .bubble .text { font-size: 14px; line-height: 1.4; }
+        #messagesContainer .msg .bubble .time { font-size: 10px; opacity: 0.4; margin-top: 4px; text-align: right; }
+        #messagesContainer .msg .bubble .image-msg { max-width: 200px; border-radius: 12px; margin-top: 4px; }
+        #messagesContainer .empty { color: rgba(255,255,255,0.2); text-align: center; padding: 40px 0; font-size: 14px; }
+
+        .input-area { display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
+        .input-area input { flex: 1; padding: 12px 18px; border-radius: 60px; border: 1.5px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); color: #fff; font-size: 15px; outline: none; transition: 0.3s; font-family: 'Inter', sans-serif; }
+        .input-area input:focus { border-color: #f5576c; background: rgba(255,255,255,0.08); }
+        .input-area input::placeholder { color: rgba(255,255,255,0.25); }
+        .input-area button { padding: 12px 18px; border: none; border-radius: 60px; background: linear-gradient(135deg, #f093fb, #f5576c); color: #fff; font-weight: 600; cursor: pointer; font-size: 15px; display: flex; align-items: center; gap: 8px; font-family: 'Inter', sans-serif; }
+        .input-area button:hover { transform: scale(1.05); box-shadow: 0 8px 24px rgba(245,87,108,0.3); }
+        .input-area .file-btn { background: rgba(255,255,255,0.1); }
+        .input-area .file-btn:hover { background: rgba(255,255,255,0.2); }
+        .input-area input[type="file"] { display: none; }
 
         .settings-group { margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 16px; }
-        .settings-group .btn { margin-bottom: 10px; }
 
-        @media (max-width: 480px) { .container { padding: 28px 20px; border-radius: 28px; } .logo h1 { font-size: 26px; } .messages-container { height: 200px; } }
+        /* Модальное окно для показа пароля */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: rgba(30,30,50,0.95); border-radius: 32px; padding: 32px; max-width: 400px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.06); }
+        .modal h2 { color: #fff; margin-bottom: 16px; text-align: center; }
+        .modal .modal-close { float: right; background: none; border: none; color: rgba(255,255,255,0.5); font-size: 24px; cursor: pointer; }
+
+        @media (max-width: 480px) { .container { padding: 16px; } .logo h1 { font-size: 26px; } }
     </style>
 </head>
 <body>
 <div class="container" id="app">
+
     <!-- АВТОРИЗАЦИЯ -->
     <div id="authBox">
-        <div class="logo"><i class="fas fa-bolt"></i><h1>ZING</h1></div>
-        <p class="sub">Вход по коду на почту</p>
-        <div id="step1">
-            <div class="input-group">
-                <label><i class="far fa-envelope"></i> Электронная почта</label>
-                <input type="email" id="emailInput" placeholder="hello@example.com">
+        <div style="max-width: 400px; width: 100%; margin: auto;">
+            <div class="logo"><i class="fas fa-bolt"></i><h1>ZING</h1></div>
+            <p class="sub">Вход в мессенджер</p>
+
+            <!-- Вкладки входа -->
+            <div class="auth-tabs">
+                <button class="active" data-tab="login-password">Пароль</button>
+                <button data-tab="login-code">По коду</button>
             </div>
-            <button class="btn" id="sendCodeBtn">
-                <span id="btnText">Отправить код</span>
-                <div class="spinner" id="spinner" style="display:none;"></div>
-            </button>
-            <button class="btn btn-secondary mt-10" id="resetPasswordBtn">Забыли пароль?</button>
-        </div>
-        <div id="step2">
-            <div class="input-group">
-                <label><i class="fas fa-key"></i> Введите код из письма</label>
-                <input type="text" id="codeInput" placeholder="123456" maxlength="6">
+
+            <!-- Панель входа по паролю -->
+            <div id="login-password" class="auth-panel active">
+                <div class="input-group">
+                    <label><i class="far fa-envelope"></i> Email</label>
+                    <input type="email" id="loginEmail" placeholder="example@mail.com">
+                </div>
+                <div class="input-group">
+                    <label><i class="fas fa-lock"></i> Пароль</label>
+                    <input type="password" id="loginPassword" placeholder="Введите пароль">
+                </div>
+                <button class="btn" id="loginPasswordBtn">Войти</button>
+                <button class="btn btn-secondary mt-10" id="resetPasswordBtn">Забыли пароль?</button>
+                <div id="loginMessage" class="message" style="display:none;">
+                    <span class="icon">⚠️</span>
+                    <span id="loginMessageText"></span>
+                </div>
             </div>
-            <button class="btn" id="verifyCodeBtn">Войти</button>
-            <button class="btn btn-secondary mt-10" id="resendCodeBtn">Отправить повторно</button>
-            <div id="codeMessage" class="message" style="display:none;">
-                <span class="icon">⚠️</span>
-                <span id="codeMessageText"></span>
+
+            <!-- Панель входа по коду (если забыл пароль или 2FA) -->
+            <div id="login-code" class="auth-panel">
+                <div class="input-group">
+                    <label><i class="far fa-envelope"></i> Email</label>
+                    <input type="email" id="codeLoginEmail" placeholder="example@mail.com">
+                </div>
+                <button class="btn" id="sendCodeLoginBtn">Отправить код</button>
+                <div id="codeLoginStep2" style="display:none;">
+                    <div class="input-group mt-10">
+                        <label><i class="fas fa-key"></i> Код из письма</label>
+                        <input type="text" id="codeLoginInput" placeholder="123456" maxlength="6">
+                    </div>
+                    <button class="btn" id="verifyCodeLoginBtn">Войти</button>
+                    <div id="codeLoginMessage" class="message" style="display:none;">
+                        <span class="icon">⚠️</span>
+                        <span id="codeLoginMessageText"></span>
+                    </div>
+                </div>
             </div>
+
+            <div class="footer">Безопасно и быстро</div>
         </div>
-        <div class="message" id="messageBox">
-            <span class="icon">✉️</span>
-            <span id="messageText">Проверьте почту, мы отправили код.</span>
-        </div>
-        <div class="footer">Безопасно и быстро</div>
     </div>
 
-    <!-- ПРОФИЛЬ -->
+    <!-- УСТАНОВКА ПАРОЛЯ (после регистрации) -->
+    <div id="setPasswordBox">
+        <div style="max-width: 400px; width: 100%; margin: auto;">
+            <div class="logo"><i class="fas fa-bolt"></i><h1>ZING</h1></div>
+            <p class="sub">Установите постоянный пароль</p>
+            <div class="input-group">
+                <label><i class="fas fa-lock"></i> Новый пароль</label>
+                <input type="password" id="newPassword" placeholder="Придумайте пароль">
+            </div>
+            <div class="input-group">
+                <label><i class="fas fa-lock"></i> Подтверждение пароля</label>
+                <input type="password" id="confirmPassword" placeholder="Повторите пароль">
+            </div>
+            <div class="password-generator">
+                <p style="color:rgba(255,255,255,0.6); font-size:13px; margin-bottom:8px;">Или выберите надёжный пароль:</p>
+                <div class="options" id="passwordOptions"></div>
+            </div>
+            <button class="btn" id="setPasswordBtn">Сохранить пароль</button>
+            <div id="setPasswordMessage" class="message" style="display:none;">
+                <span class="icon">⚠️</span>
+                <span id="setPasswordMessageText"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ПРОФИЛЬ (настройки) -->
     <div id="profileBox">
-        <div class="profile-header">
-            <div class="avatar-big" id="profileAvatar">👤</div>
-            <p>Заполните профиль, чтобы продолжить</p>
+        <div class="profile-header" style="text-align:center; margin-bottom:24px; flex-shrink:0;">
+            <div class="avatar-big" id="profileAvatar" style="width:120px; height:120px; border-radius:50%; background: linear-gradient(135deg, #f093fb, #f5576c); margin: 0 auto 12px; display:flex; align-items:center; justify-content:center; font-size:48px; color:#fff; box-shadow: 0 12px 30px rgba(245,87,108,0.3); background-size:cover; background-position:center; position:relative; cursor:pointer;">
+                <div class="avatar-upload-overlay" style="position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,0.5); color:#fff; font-size:12px; text-align:center; padding:6px; border-radius:0 0 50% 50%; opacity:0; transition:0.3s;">
+                    <i class="fas fa-camera"></i> Изменить
+                </div>
+                <input type="file" id="profileAvatarInput" accept="image/*" style="display:none;">
+            </div>
+            <p style="color:rgba(255,255,255,0.5);">Нажмите на аватар, чтобы загрузить фото</p>
         </div>
-        <div class="input-group">
-            <label><i class="fas fa-user"></i> Имя <span style="color:#f5576c;">*</span></label>
-            <input type="text" id="firstName" placeholder="Ваше имя">
-        </div>
-        <div class="input-group">
-            <label><i class="fas fa-user-tag"></i> Фамилия <span style="color:rgba(255,255,255,0.3);">(необязательно)</span></label>
-            <input type="text" id="lastName" placeholder="Фамилия">
-        </div>
-        <div class="input-group">
-            <label><i class="fas fa-venus-mars"></i> Пол</label>
-            <select id="gender">
-                <option value="Секрет">🔮 Секрет</option>
-                <option value="Мужской">👨 Мужской</option>
-                <option value="Женский">👩 Женский</option>
-            </select>
-        </div>
-        <div class="input-group">
-            <label><i class="fas fa-pen"></i> О себе <span style="color:rgba(255,255,255,0.3);">(необязательно)</span></label>
-            <textarea id="bio" placeholder="Расскажите о себе..." rows="2"></textarea>
-        </div>
-        <div class="input-group">
-            <label><i class="fas fa-image"></i> Ссылка на аватар <span style="color:rgba(255,255,255,0.3);">(необязательно)</span></label>
-            <input type="text" id="avatarUrl" placeholder="https://example.com/avatar.jpg">
-            <div class="avatar-preview" id="avatarPreview"><i class="fas fa-user"></i></div>
-        </div>
-        <button class="btn" id="saveProfileBtn"><i class="fas fa-check"></i> Сохранить профиль</button>
-        <div class="settings-group">
-            <button class="btn btn-danger" id="deleteAccountBtn"><i class="fas fa-trash"></i> Удалить аккаунт</button>
-        </div>
-        <div class="message" id="profileMessage" style="display:none;">
-            <span class="icon">✅</span>
-            <span id="profileMessageText"></span>
+        <div style="flex:1; overflow-y:auto;">
+            <div class="input-group">
+                <label><i class="fas fa-user"></i> Имя <span style="color:#f5576c;">*</span></label>
+                <input type="text" id="profileFirstName" placeholder="Ваше имя">
+            </div>
+            <div class="input-group">
+                <label><i class="fas fa-user-tag"></i> Фамилия <span style="color:rgba(255,255,255,0.3);">(необязательно)</span></label>
+                <input type="text" id="profileLastName" placeholder="Фамилия">
+            </div>
+            <div class="input-group">
+                <label><i class="fas fa-venus-mars"></i> Пол</label>
+                <select id="profileGender">
+                    <option value="Секрет">🔮 Секрет</option>
+                    <option value="Мужской">👨 Мужской</option>
+                    <option value="Женский">👩 Женский</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label><i class="fas fa-pen"></i> О себе</label>
+                <textarea id="profileBio" placeholder="Расскажите о себе..." rows="3"></textarea>
+            </div>
+
+            <!-- Блок с паролем и 2FA -->
+            <div class="settings-group">
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0;">
+                    <span style="color:rgba(255,255,255,0.7);">Двухфакторная аутентификация</span>
+                    <label class="switch">
+                        <input type="checkbox" id="twoFactorToggle">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+                <button class="btn btn-secondary btn-sm" id="showPasswordBtn" style="width:auto;"><i class="fas fa-eye"></i> Показать пароль</button>
+                <button class="btn btn-secondary btn-sm mt-10" id="changePasswordBtn" style="width:auto;"><i class="fas fa-key"></i> Сменить пароль</button>
+            </div>
+
+            <button class="btn" id="saveProfileBtn"><i class="fas fa-check"></i> Сохранить профиль</button>
+            <div class="settings-group">
+                <button class="btn btn-danger" id="deleteAccountBtn"><i class="fas fa-trash"></i> Удалить аккаунт</button>
+                <button class="btn btn-secondary mt-10" id="closeProfileBtn"><i class="fas fa-arrow-left"></i> Назад в чат</button>
+            </div>
+            <div class="message" id="profileMessage" style="display:none;">
+                <span class="icon">✅</span>
+                <span id="profileMessageText"></span>
+            </div>
         </div>
     </div>
 
@@ -191,21 +296,28 @@
                 <div class="avatar-small" id="chatAvatar">Z</div>
                 <div class="name" id="chatUserName">Пользователь <small>онлайн</small></div>
             </div>
-            <button class="logout-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Выйти</button>
+            <div class="actions">
+                <button id="settingsBtn"><i class="fas fa-cog"></i></button>
+                <button class="logout-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i></button>
+            </div>
         </div>
+
         <div id="searchBox">
             <input type="text" id="searchInput" placeholder="Найти человека по почте...">
             <button id="searchBtn"><i class="fas fa-search"></i></button>
         </div>
         <div id="searchResults"></div>
         <div id="chatList"></div>
+
         <div id="activeChat">
             <div class="chat-header">
                 <button class="back-btn" id="backToChatList"><i class="fas fa-arrow-left"></i></button>
-                <span style="color:white; font-weight:600;" id="activeChatName">Чат</span>
-                <button class="btn-secondary" id="blockUserBtn" style="padding:4px 12px; font-size:12px;">Блокировать</button>
+                <span class="chat-title" id="activeChatName">Чат</span>
+                <div class="chat-actions">
+                    <button id="blockUserBtn">Блокировать</button>
+                </div>
             </div>
-            <div class="messages-container" id="messagesContainer">
+            <div id="messagesContainer">
                 <div class="empty">Сообщений пока нет</div>
             </div>
             <div class="input-area">
@@ -217,6 +329,21 @@
         </div>
     </div>
 </div>
+
+<!-- Модальное окно для показа пароля -->
+<div class="modal-overlay" id="passwordModal">
+    <div class="modal">
+        <button class="modal-close" id="passwordModalClose">&times;</button>
+        <h2>Ваш пароль</h2>
+        <div class="input-group">
+            <label>Введите код из письма</label>
+            <input type="text" id="passwordModalCode" placeholder="123456" maxlength="6">
+        </div>
+        <button class="btn" id="passwordModalConfirm">Подтвердить</button>
+        <div id="passwordModalResult" style="margin-top:16px; text-align:center; color:#fff; font-size:18px; font-weight:600; word-break:break-all;"></div>
+    </div>
+</div>
+
 <script src="app.js"></script>
 </body>
 </html>
