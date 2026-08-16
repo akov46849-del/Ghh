@@ -126,7 +126,7 @@ sendCodeBtn.addEventListener('click', () => {
     });
 });
 
-// --- Проверка кода (НАДЁЖНАЯ ЛОГИКА без fetchSignInMethods) ---
+// --- Проверка кода (ПРАВИЛЬНАЯ ЛОГИКА: сначала БД, потом Auth) ---
 verifyCodeBtn.addEventListener('click', () => {
     const code = codeInput.value.trim();
     if (!code || code.length !== 6) {
@@ -164,56 +164,81 @@ verifyCodeBtn.addEventListener('click', () => {
         // Удаляем код
         fetch(url, { method: 'DELETE' }).catch(() => {});
 
-        // ========== ЛОГИКА ВХОДА БЕЗ fetchSignInMethodsForEmail ==========
-        const tempPassword = Math.random().toString(36).slice(-8);
+        // ========== НОВАЯ ЛОГИКА (по вашему совету) ==========
+        // Сначала ищем пользователя в базе данных по email
+        db.ref('users').orderByChild('email').equalTo(currentEmail).once('value')
+            .then(snapshot => {
+                const userData = snapshot.val();
+                
+                if (userData) {
+                    // Пользователь уже есть в нашей базе -> значит он есть и в Auth
+                    const uid = Object.keys(userData)[0];
+                    const savedPassword = userData[uid].password;
 
-        // 1. Пытаемся создать нового пользователя
-        auth.createUserWithEmailAndPassword(currentEmail, tempPassword)
-            .then(userCred => {
-                // Успешно создан новый пользователь
-                const uid = userCred.user.uid;
-                return db.ref('users/' + uid + '/password').set(tempPassword)
-                    .then(() => userCred);
+                    if (savedPassword) {
+                        // Входим с известным паролем
+                        return auth.signInWithEmailAndPassword(currentEmail, savedPassword);
+                    } else {
+                        // Пароля нет (редкий кейс) -> генерируем новый и сохраняем
+                        const newPass = Math.random().toString(36).slice(-8);
+                        return db.ref(`users/${uid}/password`).set(newPass)
+                            .then(() => auth.signInWithEmailAndPassword(currentEmail, newPass));
+                    }
+                } else {
+                    // Пользователя НЕТ в базе -> это ПЕРВЫЙ ВХОД / РЕГИСТРАЦИЯ
+                    const tempPassword = Math.random().toString(36).slice(-8);
+                    return auth.createUserWithEmailAndPassword(currentEmail, tempPassword)
+                        .then(userCred => {
+                            const uid = userCred.user.uid;
+                            // Сохраняем профиль и пароль в БД
+                            return db.ref('users/' + uid).set({
+                                email: currentEmail,
+                                password: tempPassword,
+                                firstName: currentEmail.split('@')[0] || 'User',
+                                lastName: '',
+                                gender: 'Секрет',
+                                bio: '',
+                                avatar: '',
+                                createdAt: Date.now(),
+                                updatedAt: Date.now(),
+                                blocked: []
+                            });
+                        });
+                }
             })
             .then(() => {
                 showCodeMessage('✅ Вход выполнен!', true);
             })
             .catch(err => {
+                console.error('Ошибка входа:', err);
+                // Если вдруг ошибка, что пользователь уже существует в Auth (редкий случай)
                 if (err.code === 'auth/email-already-in-use') {
-                    // 2. Пользователь уже существует – ищем его пароль в базе
+                    // Попробуем найти его в БД ещё раз и войти
                     db.ref('users').orderByChild('email').equalTo(currentEmail).once('value')
                         .then(snapshot => {
                             const userData = snapshot.val();
                             if (!userData) {
-                                // Пользователь есть в Auth, но нет в базе данных – 
-                                // предлагаем сбросить пароль через "Забыли пароль?"
-                                showCodeMessage('❌ Аккаунт найден, но профиль отсутствует. Используйте "Забыли пароль?" для восстановления.', false);
-                                return Promise.reject(new Error('USER_IN_AUTH_BUT_NOT_IN_DB'));
+                                showCodeMessage('Ошибка: пользователь есть в Auth, но нет в базе. Используйте "Забыли пароль?"', false);
+                                return;
                             }
                             const uid = Object.keys(userData)[0];
                             const savedPassword = userData[uid].password;
-                            if (!savedPassword) {
-                                // Пароль не сохранён – создаём новый и сохраняем
-                                const newPass = Math.random().toString(36).slice(-8);
-                                return db.ref('users/' + uid + '/password').set(newPass)
-                                    .then(() => auth.signInWithEmailAndPassword(currentEmail, newPass));
-                            } else {
+                            if (savedPassword) {
                                 return auth.signInWithEmailAndPassword(currentEmail, savedPassword);
+                            } else {
+                                const newPass = Math.random().toString(36).slice(-8);
+                                return db.ref(`users/${uid}/password`).set(newPass)
+                                    .then(() => auth.signInWithEmailAndPassword(currentEmail, newPass));
                             }
                         })
                         .then(() => {
                             showCodeMessage('✅ Вход выполнен!', true);
                         })
-                        .catch(loginErr => {
-                            if (loginErr.message === 'USER_IN_AUTH_BUT_NOT_IN_DB') {
-                                // уже показали сообщение
-                            } else {
-                                showCodeMessage('Ошибка входа: ' + loginErr.message, false);
-                            }
+                        .catch(err2 => {
+                            showCodeMessage('Ошибка входа: ' + err2.message, false);
                         });
                 } else {
-                    // Другая ошибка (например, сеть)
-                    showCodeMessage('Ошибка: ' + err.message, false);
+                    showCodeMessage('Ошибка входа: ' + err.message, false);
                 }
             });
     })
