@@ -116,7 +116,6 @@ const remoteVideo = document.getElementById('remoteVideo');
 const localVideo = document.getElementById('localVideo');
 const hangupBtn = document.getElementById('hangupBtn');
 
-// Новые элементы для заявок
 const requestsBtn = document.getElementById('requestsBtn');
 const requestsModal = document.getElementById('requestsModal');
 const requestsModalClose = document.getElementById('requestsModalClose');
@@ -124,7 +123,7 @@ const requestsList = document.getElementById('requestsList');
 const requestsBadge = document.getElementById('requestsBadge');
 
 // ============================================================
-// 1. АВТОРИЗАЦИЯ (вкладки) – без изменений
+// 1. АВТОРИЗАЦИЯ (вкладки)
 // ============================================================
 document.querySelectorAll('.auth-tabs button').forEach(btn => {
     btn.addEventListener('click', function() {
@@ -137,7 +136,7 @@ document.querySelectorAll('.auth-tabs button').forEach(btn => {
 });
 
 // ============================================================
-// 2. ВХОД ПО ПАРОЛЮ (без изменений)
+// 2. ВХОД ПО ПАРОЛЮ
 // ============================================================
 loginPasswordBtn.addEventListener('click', () => {
     const email = loginEmail.value.trim();
@@ -151,7 +150,6 @@ loginPasswordBtn.addEventListener('click', () => {
 
     auth.signInWithEmailAndPassword(email, pass)
         .then(userCred => {
-            console.log('✅ Вход успешен, uid:', userCred.user.uid);
             const uid = userCred.user.uid;
             return db.ref('users/' + uid + '/twoFactorEnabled').once('value')
                 .then(snapshot => {
@@ -181,7 +179,6 @@ loginPasswordBtn.addEventListener('click', () => {
                 });
         })
         .catch(err => {
-            console.error('❌ Ошибка входа:', err);
             showLoginMessage('Ошибка: ' + err.message, false);
         })
         .finally(() => {
@@ -206,7 +203,7 @@ resetPasswordBtn.addEventListener('click', () => {
 });
 
 // ============================================================
-// 3. ВХОД ПО КОДУ (без изменений)
+// 3. ВХОД ПО КОДУ
 // ============================================================
 sendCodeLoginBtn.addEventListener('click', () => {
     const email = codeLoginEmail.value.trim();
@@ -279,7 +276,7 @@ verifyCodeLoginBtn.addEventListener('click', () => {
 });
 
 // ============================================================
-// 4. РЕГИСТРАЦИЯ (без изменений)
+// 4. РЕГИСТРАЦИЯ
 // ============================================================
 sendCodeRegisterBtn.addEventListener('click', () => {
     const email = registerEmail.value.trim();
@@ -347,7 +344,7 @@ verifyRegisterBtn.addEventListener('click', () => {
 });
 
 // ============================================================
-// 5. УСТАНОВКА ПАРОЛЯ (без изменений)
+// 5. УСТАНОВКА ПАРОЛЯ
 // ============================================================
 function showSetPassword(user) {
     authBox.style.display = 'none';
@@ -436,7 +433,7 @@ setPasswordBtn.addEventListener('click', () => {
 });
 
 // ============================================================
-// 6. ПРОФИЛЬ (без изменений)
+// 6. ПРОФИЛЬ
 // ============================================================
 function openProfile() {
     chatBox.style.display = 'none';
@@ -639,7 +636,7 @@ deleteAccountBtn.addEventListener('click', () => {
 closeProfileBtn.addEventListener('click', closeProfile);
 
 // ============================================================
-// 7. ЧАТ (без изменений, кроме добавления обновления бейджа)
+// 7. ЧАТ
 // ============================================================
 function showChat() {
     authBox.style.display = 'none';
@@ -648,7 +645,7 @@ function showChat() {
     setPasswordBox.style.display = 'none';
     updateChatHeader();
     loadChatList();
-    updateRequestsBadge(); // обновить бейдж при входе
+    updateRequestsBadge();
 }
 
 function updateChatHeader() {
@@ -887,7 +884,7 @@ backToChatList.addEventListener('click', () => {
 });
 
 // ============================================================
-// 8. ПОИСК И ЗАЯВКИ (с обновлением бейджа)
+// 8. ПОИСК И ЗАЯВКИ
 // ============================================================
 searchBtn.addEventListener('click', () => {
     const query = searchInput.value.trim().toLowerCase();
@@ -955,7 +952,7 @@ function sendFriendRequest(toUid) {
 }
 
 // ============================================================
-// 9. ЗАПРОСЫ (отображение, принятие, отклонение, отмена)
+// 9. ЗАПРОСЫ
 // ============================================================
 function updateRequestsBadge() {
     if (!currentUser) return;
@@ -981,11 +978,9 @@ function loadRequests() {
     const list = document.getElementById('requestsList');
     list.innerHTML = '<div style="color:rgba(255,255,255,0.4); text-align:center; padding:20px;">Загрузка...</div>';
 
-    // Загружаем входящие
     const incomingRef = db.ref('friendRequests').orderByChild('to').equalTo(currentUser.uid);
     const outgoingRef = db.ref('friendRequests').orderByChild('from').equalTo(currentUser.uid);
 
-    // Получаем обе выборки
     Promise.all([
         incomingRef.once('value'),
         outgoingRef.once('value')
@@ -993,11 +988,9 @@ function loadRequests() {
         const incomingData = incomingSnap.val() || {};
         const outgoingData = outgoingSnap.val() || {};
 
-        // Фильтруем только pending
         const incomingPending = Object.entries(incomingData).filter(([key, req]) => req.status === 'pending');
         const outgoingPending = Object.entries(outgoingData).filter(([key, req]) => req.status === 'pending');
 
-        // Отображаем вкладки
         let html = `
             <div class="requests-tabs">
                 <button class="active" data-rtab="incoming">Входящие (${incomingPending.length})</button>
@@ -1010,7 +1003,6 @@ function loadRequests() {
         if (incomingPending.length === 0) {
             html += `<div style="color:rgba(255,255,255,0.4); text-align:center; padding:20px;">Нет входящих заявок</div>`;
         } else {
-            // Для каждой входящей заявки получаем данные отправителя
             const promises = incomingPending.map(([key, req]) => {
                 return db.ref('users/' + req.from).once('value').then(snap => {
                     const user = snap.val();
@@ -1034,7 +1026,6 @@ function loadRequests() {
                         `;
                     }
                 });
-                // Добавляем исходящие
                 html += `</div><div id="outgoingList" style="display:none; max-height:300px; overflow-y:auto;">`;
                 if (outgoingPending.length === 0) {
                     html += `<div style="color:rgba(255,255,255,0.4); text-align:center; padding:20px;">Нет исходящих заявок</div>`;
@@ -1062,11 +1053,8 @@ function loadRequests() {
                             }
                         });
                         html += `</div>`;
-                        // Вставляем в DOM
                         list.innerHTML = html;
-                        // Добавляем обработчики
                         addRequestListeners();
-                        // Управление вкладками
                         document.querySelectorAll('.requests-tabs button').forEach(btn => {
                             btn.addEventListener('click', function() {
                                 document.querySelectorAll('.requests-tabs button').forEach(b => b.classList.remove('active'));
@@ -1080,7 +1068,6 @@ function loadRequests() {
                 }
             });
         }
-        // Если нет входящих, просто показываем исходящие
         if (incomingPending.length === 0) {
             html += `</div><div id="outgoingList" style="max-height:300px; overflow-y:auto;">`;
             if (outgoingPending.length === 0) {
@@ -1131,7 +1118,6 @@ function loadRequests() {
 }
 
 function addRequestListeners() {
-    // Принять заявку
     document.querySelectorAll('.accept').forEach(btn => {
         btn.addEventListener('click', function() {
             const key = this.dataset.key;
@@ -1139,14 +1125,12 @@ function addRequestListeners() {
             acceptRequest(key, uid);
         });
     });
-    // Отклонить заявку
     document.querySelectorAll('.reject').forEach(btn => {
         btn.addEventListener('click', function() {
             const key = this.dataset.key;
             rejectRequest(key);
         });
     });
-    // Отменить заявку
     document.querySelectorAll('.cancel').forEach(btn => {
         btn.addEventListener('click', function() {
             const key = this.dataset.key;
@@ -1156,7 +1140,6 @@ function addRequestListeners() {
 }
 
 function acceptRequest(key, friendUid) {
-    // Создаём чат между пользователями
     const chatId = [currentUser.uid, friendUid].sort().join('_');
     const chatRef = db.ref('chats/' + chatId);
     chatRef.set({
@@ -1164,13 +1147,12 @@ function acceptRequest(key, friendUid) {
         lastMessage: 'Начните общение!',
         lastTimestamp: Date.now()
     }).then(() => {
-        // Удаляем заявку
         return db.ref('friendRequests/' + key).remove();
     }).then(() => {
         showProfileMessage('Заявка принята! Чат создан.', true);
         loadRequests();
         updateRequestsBadge();
-        loadChatList(); // обновить список чатов
+        loadChatList();
     }).catch(err => {
         showProfileMessage('Ошибка: ' + err.message, false);
     });
@@ -1200,7 +1182,6 @@ function cancelRequest(key) {
         });
 }
 
-// Открытие модалки заявок
 requestsBtn.addEventListener('click', () => {
     requestsModal.classList.add('show');
     loadRequests();
@@ -1210,7 +1191,6 @@ requestsModalClose.addEventListener('click', () => {
     requestsModal.classList.remove('show');
 });
 
-// Закрытие по клику вне модалки
 requestsModal.addEventListener('click', (e) => {
     if (e.target === requestsModal) {
         requestsModal.classList.remove('show');
@@ -1218,7 +1198,7 @@ requestsModal.addEventListener('click', (e) => {
 });
 
 // ============================================================
-// 10. БЛОКИРОВКА (без изменений)
+// 10. БЛОКИРОВКА
 // ============================================================
 function blockUser(uid) {
     const blockedList = currentUserProfile.blocked || [];
@@ -1306,7 +1286,7 @@ function verify2FACode(email, code) {
 }
 
 // ============================================================
-// 12. ЗВОНКИ (без изменений)
+// 12. ЗВОНКИ (WebRTC)
 // ============================================================
 let peerConnection = null;
 let localStream = null;
@@ -1512,7 +1492,4 @@ logoutBtn.addEventListener('click', () => {
 
 settingsBtn.addEventListener('click', openProfile);
 
-// ============================================================
-// 15. ЗАПУСК (консоль)
-// ============================================================
 console.log('✅ ZING app.js загружен и готов к работе!');
