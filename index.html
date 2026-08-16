@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* CSS (полный) */
+        /* CSS (полный, как в предыдущей версии) */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; overflow: hidden; }
         body { font-family: 'Inter', sans-serif; background: linear-gradient(145deg, #0f0c29, #302b63, #24243e); display: flex; justify-content: center; align-items: center; height: 100vh; padding: 0; }
@@ -55,8 +55,8 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
         .footer { margin-top: 20px; text-align: center; color: rgba(255,255,255,0.15); font-size: 12px; }
 
-        .auth-tabs { display: flex; gap: 10px; margin-bottom: 16px; }
-        .auth-tabs button { flex: 1; padding: 10px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.6); border-radius: 60px; cursor: pointer; transition: 0.3s; font-size: 14px; font-weight: 500; }
+        .auth-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+        .auth-tabs button { flex: 1; min-width: 80px; padding: 10px 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.6); border-radius: 60px; cursor: pointer; transition: 0.3s; font-size: 13px; font-weight: 500; }
         .auth-tabs button.active { background: linear-gradient(135deg, #f093fb, #f5576c); color: #fff; border-color: transparent; }
         .auth-tabs button:hover { background: rgba(255,255,255,0.08); color: #fff; }
         .auth-panel { display: none; }
@@ -135,7 +135,6 @@
 
         .settings-group { margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 16px; }
 
-        /* Стиль для переключателя 2FA */
         .switch { position: relative; display: inline-block; width: 48px; height: 26px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.2); transition: .3s; border-radius: 34px; }
@@ -159,13 +158,15 @@
     <div id="authBox">
         <div style="max-width: 400px; width: 100%; margin: auto;">
             <div class="logo"><i class="fas fa-bolt"></i><h1>ZING</h1></div>
-            <p class="sub">Вход в мессенджер</p>
+            <p class="sub">Вход или регистрация</p>
 
             <div class="auth-tabs">
                 <button class="active" data-tab="login-password">Пароль</button>
                 <button data-tab="login-code">По коду</button>
+                <button data-tab="register">Регистрация</button>
             </div>
 
+            <!-- Вход по паролю -->
             <div id="login-password" class="auth-panel active">
                 <div class="input-group">
                     <label><i class="far fa-envelope"></i> Email</label>
@@ -183,6 +184,7 @@
                 </div>
             </div>
 
+            <!-- Вход по коду -->
             <div id="login-code" class="auth-panel">
                 <div class="input-group">
                     <label><i class="far fa-envelope"></i> Email</label>
@@ -198,6 +200,26 @@
                     <div id="codeLoginMessage" class="message" style="display:none;">
                         <span class="icon">⚠️</span>
                         <span id="codeLoginMessageText"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Регистрация -->
+            <div id="register" class="auth-panel">
+                <div class="input-group">
+                    <label><i class="far fa-envelope"></i> Email</label>
+                    <input type="email" id="registerEmail" placeholder="example@mail.com">
+                </div>
+                <button class="btn" id="sendCodeRegisterBtn">Отправить код</button>
+                <div id="registerStep2" style="display:none;">
+                    <div class="input-group mt-10">
+                        <label><i class="fas fa-key"></i> Код из письма</label>
+                        <input type="text" id="registerCodeInput" placeholder="123456" maxlength="6">
+                    </div>
+                    <button class="btn" id="verifyRegisterBtn">Зарегистрироваться</button>
+                    <div id="registerMessage" class="message" style="display:none;">
+                        <span class="icon">⚠️</span>
+                        <span id="registerMessageText"></span>
                     </div>
                 </div>
             </div>
@@ -233,6 +255,7 @@
 
     <!-- ПРОФИЛЬ (настройки) -->
     <div id="profileBox">
+        <!-- ... тот же код, что и раньше ... -->
         <div class="profile-header" style="text-align:center; margin-bottom:24px; flex-shrink:0;">
             <div class="avatar-big" id="profileAvatar" style="width:120px; height:120px; border-radius:50%; background: linear-gradient(135deg, #f093fb, #f5576c); margin: 0 auto 12px; display:flex; align-items:center; justify-content:center; font-size:48px; color:#fff; box-shadow: 0 12px 30px rgba(245,87,108,0.3); background-size:cover; background-position:center; position:relative; cursor:pointer;">
                 <div class="avatar-upload-overlay" style="position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,0.5); color:#fff; font-size:12px; text-align:center; padding:6px; border-radius:0 0 50% 50%; opacity:0; transition:0.3s;">
@@ -288,7 +311,7 @@
         </div>
     </div>
 
-    <!-- ЧАТ -->
+    <!-- ЧАТ (весь код) -->
     <div id="chatBox">
         <div class="chat-header">
             <div class="user-info">
