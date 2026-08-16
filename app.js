@@ -25,6 +25,7 @@ let currentEmail = '';
 let currentChatId = null;
 let currentChatPartnerUid = null;
 let messagesListener = null;
+let tempUserForPassword = null;
 
 const FIREBASE_DB_URL = 'https://zing-4a547-default-rtdb.europe-west1.firebasedatabase.app';
 
@@ -34,38 +35,49 @@ const FIREBASE_DB_URL = 'https://zing-4a547-default-rtdb.europe-west1.firebaseda
 const authBox = document.getElementById('authBox');
 const profileBox = document.getElementById('profileBox');
 const chatBox = document.getElementById('chatBox');
+const setPasswordBox = document.getElementById('setPasswordBox');
 
-const emailInput = document.getElementById('emailInput');
-const sendCodeBtn = document.getElementById('sendCodeBtn');
-const btnText = document.getElementById('btnText');
-const spinner = document.getElementById('spinner');
-const step1 = document.getElementById('step1');
-const step2 = document.getElementById('step2');
-const codeInput = document.getElementById('codeInput');
-const verifyCodeBtn = document.getElementById('verifyCodeBtn');
-const resendCodeBtn = document.getElementById('resendCodeBtn');
+const loginEmail = document.getElementById('loginEmail');
+const loginPassword = document.getElementById('loginPassword');
+const loginPasswordBtn = document.getElementById('loginPasswordBtn');
+const loginMessage = document.getElementById('loginMessage');
+const loginMessageText = document.getElementById('loginMessageText');
 const resetPasswordBtn = document.getElementById('resetPasswordBtn');
-const codeMessage = document.getElementById('codeMessage');
-const codeMessageText = document.getElementById('codeMessageText');
-const messageBox = document.getElementById('messageBox');
-const messageText = document.getElementById('messageText');
 
-const firstName = document.getElementById('firstName');
-const lastName = document.getElementById('lastName');
-const gender = document.getElementById('gender');
-const bio = document.getElementById('bio');
-const avatarUrl = document.getElementById('avatarUrl');
-const avatarPreview = document.getElementById('avatarPreview');
+const codeLoginEmail = document.getElementById('codeLoginEmail');
+const sendCodeLoginBtn = document.getElementById('sendCodeLoginBtn');
+const codeLoginStep2 = document.getElementById('codeLoginStep2');
+const codeLoginInput = document.getElementById('codeLoginInput');
+const verifyCodeLoginBtn = document.getElementById('verifyCodeLoginBtn');
+const codeLoginMessage = document.getElementById('codeLoginMessage');
+const codeLoginMessageText = document.getElementById('codeLoginMessageText');
+
+const newPassword = document.getElementById('newPassword');
+const confirmPassword = document.getElementById('confirmPassword');
+const setPasswordBtn = document.getElementById('setPasswordBtn');
+const setPasswordMessage = document.getElementById('setPasswordMessage');
+const setPasswordMessageText = document.getElementById('setPasswordMessageText');
+const passwordOptions = document.getElementById('passwordOptions');
+
+const profileFirstName = document.getElementById('profileFirstName');
+const profileLastName = document.getElementById('profileLastName');
+const profileGender = document.getElementById('profileGender');
+const profileBio = document.getElementById('profileBio');
 const profileAvatar = document.getElementById('profileAvatar');
+const profileAvatarInput = document.getElementById('profileAvatarInput');
 const saveProfileBtn = document.getElementById('saveProfileBtn');
 const deleteAccountBtn = document.getElementById('deleteAccountBtn');
+const closeProfileBtn = document.getElementById('closeProfileBtn');
 const profileMessage = document.getElementById('profileMessage');
 const profileMessageText = document.getElementById('profileMessageText');
+const showPasswordBtn = document.getElementById('showPasswordBtn');
+const changePasswordBtn = document.getElementById('changePasswordBtn');
+const twoFactorToggle = document.getElementById('twoFactorToggle');
 
 const chatAvatar = document.getElementById('chatAvatar');
 const chatUserName = document.getElementById('chatUserName');
 const logoutBtn = document.getElementById('logoutBtn');
-
+const settingsBtn = document.getElementById('settingsBtn');
 const searchInput = document.getElementById('searchInput');
 const searchBtn = document.getElementById('searchBtn');
 const searchResults = document.getElementById('searchResults');
@@ -80,192 +92,423 @@ const backToChatList = document.getElementById('backToChatList');
 const activeChatName = document.getElementById('activeChatName');
 const blockUserBtn = document.getElementById('blockUserBtn');
 
+const passwordModal = document.getElementById('passwordModal');
+const passwordModalClose = document.getElementById('passwordModalClose');
+const passwordModalCode = document.getElementById('passwordModalCode');
+const passwordModalConfirm = document.getElementById('passwordModalConfirm');
+const passwordModalResult = document.getElementById('passwordModalResult');
+
 // ============================================================
 // 1. АВТОРИЗАЦИЯ
 // ============================================================
 
-// --- Отправка кода ---
-sendCodeBtn.addEventListener('click', () => {
-    const email = emailInput.value.trim();
+document.querySelectorAll('.auth-tabs button').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.auth-tabs button').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        const tab = this.dataset.tab;
+        document.querySelectorAll('.auth-panel').forEach(p => p.classList.remove('active'));
+        document.getElementById(tab).classList.add('active');
+    });
+});
+
+loginPasswordBtn.addEventListener('click', () => {
+    const email = loginEmail.value.trim();
+    const pass = loginPassword.value.trim();
+    if (!email || !pass) {
+        showLoginMessage('Введите email и пароль.', false);
+        return;
+    }
+    loginPasswordBtn.disabled = true;
+    loginPasswordBtn.innerHTML = '<div class="spinner"></div>';
+
+    auth.signInWithEmailAndPassword(email, pass)
+        .then(userCred => {
+            const uid = userCred.user.uid;
+            return db.ref('users/' + uid + '/twoFactorEnabled').once('value')
+                .then(snapshot => {
+                    const twoFactor = snapshot.val() || false;
+                    if (twoFactor) {
+                        return send2FACode(email)
+                            .then(() => {
+                                const code = prompt('Введите код из письма для 2FA:');
+                                if (!code) {
+                                    auth.signOut();
+                                    showLoginMessage('Вход отменён.', false);
+                                    return;
+                                }
+                                return verify2FACode(email, code)
+                                    .then(valid => {
+                                        if (valid) {
+                                            showLoginMessage('✅ Вход выполнен!', true);
+                                        } else {
+                                            auth.signOut();
+                                            showLoginMessage('Неверный код.', false);
+                                        }
+                                    });
+                            });
+                    } else {
+                        showLoginMessage('✅ Вход выполнен!', true);
+                    }
+                });
+        })
+        .catch(err => {
+            showLoginMessage('Ошибка: ' + err.message, false);
+        })
+        .finally(() => {
+            loginPasswordBtn.disabled = false;
+            loginPasswordBtn.innerHTML = 'Войти';
+        });
+});
+
+sendCodeLoginBtn.addEventListener('click', () => {
+    const email = codeLoginEmail.value.trim();
     if (!email || !email.includes('@')) {
-        showMessage('Введите корректный email.', false);
+        showCodeLoginMessage('Введите корректный email.', false);
         return;
     }
     currentEmail = email;
-    sendCodeBtn.disabled = true;
-    btnText.textContent = 'Отправка...';
-    spinner.style.display = 'inline-block';
-    messageBox.classList.remove('show');
-
     const url = `${FIREBASE_DB_URL}/emailQueue.json`;
     const data = { email, status: 'pending', timestamp: Date.now() };
-
     fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
     })
-    .then(response => {
-        if (!response.ok) throw new Error('HTTP ' + response.status);
-        return response.json();
+    .then(res => {
+        if (!res.ok) throw new Error('Ошибка отправки');
+        return res.json();
     })
     .then(() => {
-        btnText.textContent = 'Отправлено! ✅';
-        spinner.style.display = 'none';
-        sendCodeBtn.disabled = false;
-        showMessage('Код отправлен на вашу почту! Проверьте ящик.', true);
-        step1.style.display = 'none';
-        step2.style.display = 'block';
-        setTimeout(() => { btnText.textContent = 'Отправить код'; }, 3000);
+        showCodeLoginMessage('Код отправлен на почту!', true);
+        codeLoginStep2.style.display = 'block';
     })
     .catch(err => {
-        btnText.textContent = 'Отправить код';
-        spinner.style.display = 'none';
-        sendCodeBtn.disabled = false;
-        showMessage('Ошибка: ' + err.message, false);
+        showCodeLoginMessage('Ошибка: ' + err.message, false);
     });
 });
 
-// --- Проверка кода (ПРАВИЛЬНАЯ ЛОГИКА: сначала БД, потом Auth) ---
-verifyCodeBtn.addEventListener('click', () => {
-    const code = codeInput.value.trim();
+verifyCodeLoginBtn.addEventListener('click', () => {
+    const code = codeLoginInput.value.trim();
     if (!code || code.length !== 6) {
-        showCodeMessage('Введите 6-значный код.', false);
+        showCodeLoginMessage('Введите 6-значный код.', false);
         return;
     }
-
     const emailKey = currentEmail.replace(/\./g, '_');
     const url = `${FIREBASE_DB_URL}/codes/${emailKey}.json`;
-
     fetch(url)
-    .then(response => {
-        if (!response.ok) throw new Error('HTTP ' + response.status);
-        return response.json();
-    })
-    .then(data => {
-        if (!data) {
-            showCodeMessage('Код не найден. Запросите новый.', false);
-            return;
-        }
-        const storedCode = data.code;
-        const createdAt = data.createdAt;
-        const now = Date.now();
-        const tenMinutes = 10 * 60 * 1000;
-
-        if (now - createdAt > tenMinutes) {
-            showCodeMessage('Код истёк. Запросите новый.', false);
-            return;
-        }
-        if (storedCode !== code) {
-            showCodeMessage('Неверный код. Попробуйте снова.', false);
-            return;
-        }
-
-        // Удаляем код
-        fetch(url, { method: 'DELETE' }).catch(() => {});
-
-        // ========== НОВАЯ ЛОГИКА (сначала БД, потом Auth) ==========
-        // 1. Ищем пользователя в базе данных по email
-        db.ref('users').orderByChild('email').equalTo(currentEmail).once('value')
-            .then(snapshot => {
-                const userData = snapshot.val();
-                
-                if (userData) {
-                    // Пользователь уже есть в нашей базе -> значит он есть и в Auth
+        .then(res => res.json())
+        .then(data => {
+            if (!data || data.code !== code || Date.now() - data.createdAt > 10*60*1000) {
+                showCodeLoginMessage('Неверный или истёкший код.', false);
+                return;
+            }
+            fetch(url, { method: 'DELETE' }).catch(() => {});
+            db.ref('users').orderByChild('email').equalTo(currentEmail).once('value')
+                .then(snapshot => {
+                    const userData = snapshot.val();
+                    if (!userData) throw new Error('Пользователь не найден');
                     const uid = Object.keys(userData)[0];
                     const savedPassword = userData[uid].password;
-
-                    if (savedPassword) {
-                        // Входим с известным паролем
-                        return auth.signInWithEmailAndPassword(currentEmail, savedPassword);
-                    } else {
-                        // Пароля нет (редкий кейс) -> генерируем новый и сохраняем
-                        const newPass = Math.random().toString(36).slice(-8);
-                        return db.ref(`users/${uid}/password`).set(newPass)
-                            .then(() => auth.signInWithEmailAndPassword(currentEmail, newPass));
-                    }
-                } else {
-                    // Пользователя НЕТ в базе -> это ПЕРВЫЙ ВХОД / РЕГИСТРАЦИЯ
-                    const tempPassword = Math.random().toString(36).slice(-8);
-                    return auth.createUserWithEmailAndPassword(currentEmail, tempPassword)
-                        .then(userCred => {
-                            const uid = userCred.user.uid;
-                            // Сохраняем профиль и пароль в БД
-                            return db.ref('users/' + uid).set({
-                                email: currentEmail,
-                                password: tempPassword,
-                                firstName: currentEmail.split('@')[0] || 'User',
-                                lastName: '',
-                                gender: 'Секрет',
-                                bio: '',
-                                avatar: '',
-                                createdAt: Date.now(),
-                                updatedAt: Date.now(),
-                                blocked: []
-                            });
-                        });
-                }
-            })
-            .then(() => {
-                showCodeMessage('✅ Вход выполнен!', true);
-            })
-            .catch(err => {
-                console.error('Ошибка входа:', err);
-                if (err.code === 'auth/email-already-in-use') {
-                    // Если вдруг ошибка, что пользователь уже есть в Auth (но нет в БД)
-                    // Это редкий случай, но обрабатываем: просим сбросить пароль
-                    showCodeMessage('Ваш email уже зарегистрирован. Используйте "Забыли пароль?" для восстановления.', false);
-                } else {
-                    showCodeMessage('Ошибка входа: ' + err.message, false);
-                }
-            });
-    })
-    .catch(err => {
-        showCodeMessage('Ошибка: ' + err.message, false);
-    });
+                    if (!savedPassword) throw new Error('Пароль не сохранён');
+                    return auth.signInWithEmailAndPassword(currentEmail, savedPassword);
+                })
+                .then(() => {
+                    showCodeLoginMessage('✅ Вход выполнен!', true);
+                })
+                .catch(err => {
+                    showCodeLoginMessage('Ошибка: ' + err.message, false);
+                });
+        })
+        .catch(err => {
+            showCodeLoginMessage('Ошибка: ' + err.message, false);
+        });
 });
 
-// --- Повторная отправка ---
-resendCodeBtn.addEventListener('click', () => {
-    const emailKey = currentEmail.replace(/\./g, '_');
-    fetch(`${FIREBASE_DB_URL}/codes/${emailKey}.json`, { method: 'DELETE' }).catch(() => {});
-    const url = `${FIREBASE_DB_URL}/emailQueue.json`;
-    const data = { email: currentEmail, status: 'pending', timestamp: Date.now() };
-    fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-    })
-    .then(response => {
-        if (!response.ok) throw new Error('HTTP ' + response.status);
-        return response.json();
-    })
-    .then(() => {
-        showCodeMessage('Новый код отправлен!', true);
-        codeInput.value = '';
-    })
-    .catch(err => {
-        showCodeMessage('Ошибка: ' + err.message, false);
-    });
-});
-
-// --- Сброс пароля ---
 resetPasswordBtn.addEventListener('click', () => {
-    const email = emailInput.value.trim();
+    const email = loginEmail.value.trim();
     if (!email || !email.includes('@')) {
-        showMessage('Введите email для сброса пароля.', false);
+        showLoginMessage('Введите email для сброса.', false);
         return;
     }
     auth.sendPasswordResetEmail(email)
         .then(() => {
-            showMessage('Ссылка для сброса пароля отправлена на вашу почту.', true);
+            showLoginMessage('Ссылка для сброса отправлена на почту.', true);
         })
         .catch(err => {
-            showMessage('Ошибка: ' + err.message, false);
+            showLoginMessage('Ошибка: ' + err.message, false);
         });
 });
 
-// --- Удаление аккаунта ---
+// ============================================================
+// 2. УСТАНОВКА ПАРОЛЯ
+// ============================================================
+function showSetPassword(user) {
+    authBox.style.display = 'none';
+    profileBox.style.display = 'none';
+    chatBox.style.display = 'none';
+    setPasswordBox.style.display = 'flex';
+    tempUserForPassword = user;
+    generatePasswordOptions();
+}
+
+function generatePasswordOptions() {
+    const options = [];
+    for (let i = 0; i < 3; i++) {
+        options.push(generateStrongPassword());
+    }
+    passwordOptions.innerHTML = '';
+    options.forEach(pwd => {
+        const btn = document.createElement('button');
+        btn.textContent = pwd;
+        btn.dataset.password = pwd;
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.password-generator .options button').forEach(b => b.classList.remove('selected'));
+            this.classList.add('selected');
+            newPassword.value = this.dataset.password;
+            confirmPassword.value = this.dataset.password;
+        });
+        passwordOptions.appendChild(btn);
+    });
+}
+
+function generateStrongPassword() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+';
+    let pwd = '';
+    for (let i = 0; i < 14; i++) {
+        pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return pwd;
+}
+
+setPasswordBtn.addEventListener('click', () => {
+    const pwd = newPassword.value.trim();
+    const confirm = confirmPassword.value.trim();
+    if (!pwd || pwd.length < 6) {
+        showSetPasswordMessage('Пароль должен быть не менее 6 символов.', false);
+        return;
+    }
+    if (pwd !== confirm) {
+        showSetPasswordMessage('Пароли не совпадают.', false);
+        return;
+    }
+    setPasswordBtn.disabled = true;
+    setPasswordBtn.innerHTML = '<div class="spinner"></div>';
+
+    const user = tempUserForPassword;
+    if (!user) {
+        showSetPasswordMessage('Ошибка: пользователь не найден.', false);
+        setPasswordBtn.disabled = false;
+        setPasswordBtn.innerHTML = 'Сохранить пароль';
+        return;
+    }
+    user.updatePassword(pwd)
+        .then(() => {
+            return db.ref('users/' + user.uid + '/password').set(pwd);
+        })
+        .then(() => {
+            showSetPasswordMessage('Пароль установлен! ✅', true);
+            setTimeout(() => {
+                setPasswordBox.style.display = 'none';
+                showChat();
+            }, 1000);
+        })
+        .catch(err => {
+            showSetPasswordMessage('Ошибка: ' + err.message, false);
+        })
+        .finally(() => {
+            setPasswordBtn.disabled = false;
+            setPasswordBtn.innerHTML = 'Сохранить пароль';
+        });
+});
+
+// ============================================================
+// 3. ПРОФИЛЬ
+// ============================================================
+function openProfile() {
+    chatBox.style.display = 'none';
+    profileBox.style.display = 'flex';
+    if (currentUserProfile) {
+        profileFirstName.value = currentUserProfile.firstName || '';
+        profileLastName.value = currentUserProfile.lastName || '';
+        profileGender.value = currentUserProfile.gender || 'Секрет';
+        profileBio.value = currentUserProfile.bio || '';
+        if (currentUserProfile.avatar) {
+            profileAvatar.style.backgroundImage = `url(${currentUserProfile.avatar})`;
+            profileAvatar.innerHTML = '';
+        } else {
+            profileAvatar.style.backgroundImage = '';
+            profileAvatar.innerHTML = currentUserProfile.firstName ? currentUserProfile.firstName.charAt(0).toUpperCase() : '👤';
+        }
+        twoFactorToggle.checked = currentUserProfile.twoFactorEnabled || false;
+    }
+}
+
+function closeProfile() {
+    profileBox.style.display = 'none';
+    chatBox.style.display = 'flex';
+}
+
+saveProfileBtn.addEventListener('click', () => {
+    const name = profileFirstName.value.trim();
+    if (!name) {
+        showProfileMessage('Имя обязательно.', false);
+        return;
+    }
+    const updates = {
+        firstName: name,
+        lastName: profileLastName.value.trim() || '',
+        gender: profileGender.value || 'Секрет',
+        bio: profileBio.value.trim() || '',
+        twoFactorEnabled: twoFactorToggle.checked,
+        updatedAt: Date.now()
+    };
+    saveProfileBtn.disabled = true;
+    saveProfileBtn.innerHTML = '<div class="spinner"></div>';
+    db.ref('users/' + currentUser.uid).update(updates)
+        .then(() => {
+            currentUserProfile = { ...currentUserProfile, ...updates };
+            showProfileMessage('Профиль сохранён! ✅', true);
+            updateChatHeader();
+        })
+        .catch(err => {
+            showProfileMessage('Ошибка: ' + err.message, false);
+        })
+        .finally(() => {
+            saveProfileBtn.disabled = false;
+            saveProfileBtn.innerHTML = '<i class="fas fa-check"></i> Сохранить профиль';
+        });
+});
+
+profileAvatar.addEventListener('click', () => profileAvatarInput.click());
+profileAvatarInput.addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) return;
+    const storageRef = storage.ref('avatars/' + currentUser.uid + '/' + Date.now() + '_' + file.name);
+    const uploadTask = storageRef.put(file);
+    uploadTask.on('state_changed', null, null, () => {
+        uploadTask.snapshot.ref.getDownloadURL().then(url => {
+            db.ref('users/' + currentUser.uid + '/avatar').set(url)
+                .then(() => {
+                    currentUserProfile.avatar = url;
+                    profileAvatar.style.backgroundImage = `url(${url})`;
+                    profileAvatar.innerHTML = '';
+                    updateChatHeader();
+                    showProfileMessage('Аватар обновлён!', true);
+                })
+                .catch(err => showProfileMessage('Ошибка: ' + err.message, false));
+        });
+    });
+});
+
+showPasswordBtn.addEventListener('click', () => {
+    passwordModal.style.display = 'flex';
+    passwordModalResult.textContent = '';
+    passwordModalCode.value = '';
+    const email = currentUser.email;
+    const url = `${FIREBASE_DB_URL}/emailQueue.json`;
+    const data = { email, status: 'pending', timestamp: Date.now() };
+    fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(res => {
+        if (!res.ok) throw new Error('Ошибка отправки');
+        return res.json();
+    })
+    .then(() => {
+        alert('Код отправлен на вашу почту.');
+    })
+    .catch(err => alert('Ошибка: ' + err.message));
+});
+
+passwordModalConfirm.addEventListener('click', () => {
+    const code = passwordModalCode.value.trim();
+    if (!code || code.length !== 6) {
+        alert('Введите 6-значный код.');
+        return;
+    }
+    const emailKey = currentUser.email.replace(/\./g, '_');
+    const url = `${FIREBASE_DB_URL}/codes/${emailKey}.json`;
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            if (!data || data.code !== code || Date.now() - data.createdAt > 10*60*1000) {
+                alert('Неверный или истёкший код.');
+                return;
+            }
+            fetch(url, { method: 'DELETE' }).catch(() => {});
+            db.ref('users/' + currentUser.uid + '/password').once('value')
+                .then(snapshot => {
+                    const pwd = snapshot.val();
+                    if (pwd) {
+                        passwordModalResult.textContent = pwd;
+                        passwordModalResult.style.color = '#4ade80';
+                        setTimeout(() => { passwordModalResult.textContent = ''; }, 10000);
+                    } else {
+                        passwordModalResult.textContent = 'Пароль не найден.';
+                        passwordModalResult.style.color = '#f5576c';
+                    }
+                });
+        })
+        .catch(err => alert('Ошибка: ' + err.message));
+});
+
+passwordModalClose.addEventListener('click', () => {
+    passwordModal.style.display = 'none';
+});
+
+changePasswordBtn.addEventListener('click', () => {
+    const newPwd = prompt('Введите новый пароль (мин. 6 символов):');
+    if (!newPwd || newPwd.length < 6) {
+        alert('Пароль должен быть не менее 6 символов.');
+        return;
+    }
+    const confirmPwd = prompt('Повторите пароль:');
+    if (newPwd !== confirmPwd) {
+        alert('Пароли не совпадают.');
+        return;
+    }
+    const email = currentUser.email;
+    const url = `${FIREBASE_DB_URL}/emailQueue.json`;
+    const data = { email, status: 'pending', timestamp: Date.now() };
+    fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(res => {
+        if (!res.ok) throw new Error('Ошибка отправки');
+        return res.json();
+    })
+    .then(() => {
+        const code = prompt('Код отправлен на почту. Введите его:');
+        if (!code || code.length !== 6) {
+            alert('Неверный код.');
+            return;
+        }
+        const emailKey = email.replace(/\./g, '_');
+        return fetch(`${FIREBASE_DB_URL}/codes/${emailKey}.json`)
+            .then(res => res.json())
+            .then(data => {
+                if (!data || data.code !== code || Date.now() - data.createdAt > 10*60*1000) {
+                    alert('Неверный или истёкший код.');
+                    return;
+                }
+                fetch(`${FIREBASE_DB_URL}/codes/${emailKey}.json`, { method: 'DELETE' }).catch(() => {});
+                return currentUser.updatePassword(newPwd)
+                    .then(() => {
+                        return db.ref('users/' + currentUser.uid + '/password').set(newPwd);
+                    })
+                    .then(() => {
+                        alert('Пароль успешно изменён!');
+                    });
+            });
+    })
+    .catch(err => alert('Ошибка: ' + err.message));
+});
+
 deleteAccountBtn.addEventListener('click', () => {
     if (!confirm('Вы уверены, что хотите удалить аккаунт? Все данные будут потеряны.')) return;
     const uid = currentUser.uid;
@@ -273,117 +516,47 @@ deleteAccountBtn.addEventListener('click', () => {
         .then(() => currentUser.delete())
         .then(() => {
             showProfileMessage('Аккаунт удалён.', true);
-            setTimeout(() => { location.reload(); }, 2000);
+            setTimeout(() => location.reload(), 2000);
         })
         .catch(err => {
             showProfileMessage('Ошибка: ' + err.message, false);
         });
 });
 
-// ============================================================
-// 2. ПРОФИЛЬ
-// ============================================================
-function showProfileForm() {
-    authBox.style.display = 'none';
-    profileBox.style.display = 'block';
-    chatBox.style.display = 'none';
-    if (currentUser && currentUser.email) {
-        const name = currentUser.email.split('@')[0];
-        firstName.value = name;
-    }
-    avatarUrl.addEventListener('input', updateAvatarPreview);
-    updateAvatarPreview();
-}
-
-function updateAvatarPreview() {
-    const url = avatarUrl.value.trim();
-    if (url) {
-        avatarPreview.innerHTML = `<img src="${url}" alt="avatar">`;
-        profileAvatar.innerHTML = `<img src="${url}" alt="avatar" style="width:100%;height:100%;object-fit:cover;">`;
-    } else {
-        avatarPreview.innerHTML = `<i class="fas fa-user"></i>`;
-        profileAvatar.innerHTML = '👤';
-    }
-}
-
-saveProfileBtn.addEventListener('click', () => {
-    const name = firstName.value.trim();
-    if (!name) {
-        showProfileMessage('Имя обязательно для заполнения', false);
-        return;
-    }
-    const profile = {
-        firstName: name,
-        lastName: lastName.value.trim() || '',
-        gender: gender.value || 'Секрет',
-        bio: bio.value.trim() || '',
-        avatar: avatarUrl.value.trim() || '',
-        email: currentUser.email,
-        createdAt: firebase.database.ServerValue.TIMESTAMP,
-        updatedAt: firebase.database.ServerValue.TIMESTAMP,
-        blocked: []
-    };
-
-    saveProfileBtn.disabled = true;
-    saveProfileBtn.innerHTML = '<div class="spinner" style="width:20px;height:20px;"></div> Сохранение...';
-
-    db.ref('users/' + currentUser.uid).set(profile)
-        .then(() => {
-            currentUserProfile = profile;
-            showProfileMessage('Профиль сохранён! ✅', true);
-            saveProfileBtn.innerHTML = '<i class="fas fa-check"></i> Сохранить профиль';
-            saveProfileBtn.disabled = false;
-            setTimeout(() => showChat(), 800);
-        })
-        .catch(err => {
-            showProfileMessage('Ошибка: ' + err.message, false);
-            saveProfileBtn.innerHTML = '<i class="fas fa-check"></i> Сохранить профиль';
-            saveProfileBtn.disabled = false;
-        });
-});
-
-function showProfileMessage(text, success = true) {
-    profileMessage.style.display = 'flex';
-    profileMessage.className = 'message show';
-    if (success) {
-        profileMessage.classList.add('success');
-        profileMessage.querySelector('.icon').textContent = '✅';
-    } else {
-        profileMessage.classList.remove('success');
-        profileMessage.querySelector('.icon').textContent = '⚠️';
-    }
-    profileMessageText.textContent = text;
-    setTimeout(() => { profileMessage.style.display = 'none'; }, 4000);
-}
+closeProfileBtn.addEventListener('click', closeProfile);
 
 // ============================================================
-// 3. ЧАТ
+// 4. ЧАТ
 // ============================================================
 function showChat() {
     authBox.style.display = 'none';
     profileBox.style.display = 'none';
-    chatBox.style.display = 'block';
+    chatBox.style.display = 'flex';
+    setPasswordBox.style.display = 'none';
+    updateChatHeader();
+    loadChatList();
+}
 
+function updateChatHeader() {
     if (currentUserProfile) {
-        const name = currentUserProfile.firstName + (currentUserProfile.lastName ? ' ' + currentUserProfile.lastName : '');
-        chatUserName.innerHTML = name + `<small>онлайн</small>`;
-        const avatar = currentUserProfile.avatar || currentUserProfile.firstName.charAt(0).toUpperCase();
-        if (avatar.startsWith('http')) {
+        const name = (currentUserProfile.firstName || '') + (currentUserProfile.lastName ? ' ' + currentUserProfile.lastName : '');
+        chatUserName.innerHTML = (name || 'Пользователь') + `<small>онлайн</small>`;
+        const avatar = currentUserProfile.avatar || (currentUserProfile.firstName ? currentUserProfile.firstName.charAt(0).toUpperCase() : 'Z');
+        if (avatar && avatar.startsWith('http')) {
             chatAvatar.style.backgroundImage = `url(${avatar})`;
             chatAvatar.style.backgroundSize = 'cover';
             chatAvatar.textContent = '';
         } else {
+            chatAvatar.style.backgroundImage = '';
             chatAvatar.textContent = avatar;
         }
     }
-    loadChatList();
 }
 
 function loadChatList() {
     const chatsRef = db.ref('chats');
     chatsRef.off();
     chatList.innerHTML = '<div style="color:rgba(255,255,255,0.3); padding:20px; text-align:center;">Загрузка...</div>';
-
     chatsRef.orderByChild('participants').startAt(currentUser.uid).endAt(currentUser.uid + '\uf8ff')
         .on('value', (snapshot) => {
             const data = snapshot.val();
@@ -400,7 +573,6 @@ function loadChatList() {
                 return;
             }
             chats.sort((a, b) => (b[1].lastTimestamp || 0) - (a[1].lastTimestamp || 0));
-
             chats.forEach(([chatId, chat]) => {
                 const partnerUid = chat.participants.find(uid => uid !== currentUser.uid);
                 if (!partnerUid) return;
@@ -434,7 +606,6 @@ function openChat(chatId, partnerUid, partnerData) {
     chatList.style.display = 'none';
     document.getElementById('searchBox').style.display = 'none';
     document.getElementById('searchResults').style.display = 'none';
-
     activeChatName.textContent = partnerData.firstName + ' ' + (partnerData.lastName || '');
     blockUserBtn.style.display = 'inline-block';
     blockUserBtn.onclick = () => {
@@ -442,7 +613,6 @@ function openChat(chatId, partnerUid, partnerData) {
             blockUser(partnerUid);
         }
     };
-
     loadMessages(chatId);
 }
 
@@ -454,16 +624,13 @@ function loadMessages(chatId) {
     const messagesRef = db.ref('messages/' + chatId);
     messagesContainer.innerHTML = '';
     let first = true;
-
     messagesRef.limitToLast(50).on('child_added', (snapshot) => {
         const data = snapshot.val();
         if (!data) return;
         if (data.deletedBy && data.deletedBy.includes(currentUser.uid)) return;
-
         const msgEl = document.createElement('div');
         msgEl.className = 'msg';
         if (data.from === currentUser.uid) msgEl.classList.add('me');
-
         const avatarDiv = document.createElement('div');
         avatarDiv.className = 'avatar-msg';
         db.ref('users/' + data.from).once('value').then(snap => {
@@ -479,14 +646,11 @@ function loadMessages(chatId) {
                 }
             }
         });
-
         const bubble = document.createElement('div');
         bubble.className = 'bubble';
-
         const senderSpan = document.createElement('div');
         senderSpan.className = 'sender';
         senderSpan.textContent = data.from === currentUser.uid ? 'Вы' : (data.senderName || 'Unknown');
-
         const textSpan = document.createElement('div');
         textSpan.className = 'text';
         if (data.type === 'image') {
@@ -500,14 +664,12 @@ function loadMessages(chatId) {
         } else {
             textSpan.textContent = data.text || '';
         }
-
         const timeSpan = document.createElement('div');
         timeSpan.className = 'time';
         if (data.timestamp) {
             const date = new Date(data.timestamp);
             timeSpan.textContent = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
-
         if (data.from === currentUser.uid) {
             const deleteBtn = document.createElement('button');
             deleteBtn.textContent = '✕';
@@ -525,11 +687,9 @@ function loadMessages(chatId) {
             });
             timeSpan.appendChild(deleteBtn);
         }
-
         bubble.appendChild(senderSpan);
         bubble.appendChild(textSpan);
         bubble.appendChild(timeSpan);
-
         msgEl.appendChild(avatarDiv);
         msgEl.appendChild(bubble);
         messagesContainer.appendChild(msgEl);
@@ -547,7 +707,7 @@ function sendMessage() {
         text: text,
         type: 'text',
         timestamp: Date.now(),
-        senderName: currentUserProfile.firstName + ' ' + (currentUserProfile.lastName || ''),
+        senderName: (currentUserProfile.firstName || '') + (currentUserProfile.lastName ? ' ' + currentUserProfile.lastName : ''),
         deletedBy: []
     });
     db.ref('chats/' + currentChatId).update({
@@ -576,7 +736,7 @@ fileInput.addEventListener('change', () => {
                 text: url,
                 type: 'image',
                 timestamp: Date.now(),
-                senderName: currentUserProfile.firstName + ' ' + (currentUserProfile.lastName || ''),
+                senderName: (currentUserProfile.firstName || '') + (currentUserProfile.lastName ? ' ' + currentUserProfile.lastName : ''),
                 deletedBy: []
             });
             db.ref('chats/' + currentChatId).update({
@@ -610,7 +770,7 @@ backToChatList.addEventListener('click', () => {
 });
 
 // ============================================================
-// 4. ПОИСК И ЗАЯВКИ
+// 5. ПОИСК И ЗАЯВКИ
 // ============================================================
 searchBtn.addEventListener('click', () => {
     const query = searchInput.value.trim().toLowerCase();
@@ -652,7 +812,7 @@ function sendFriendRequest(toUid) {
             if (requests) {
                 const existing = Object.values(requests).find(req => req.to === toUid && req.status === 'pending');
                 if (existing) {
-                    showCodeMessage('Заявка уже отправлена.', false);
+                    showProfileMessage('Заявка уже отправлена.', false);
                     return;
                 }
             }
@@ -663,90 +823,93 @@ function sendFriendRequest(toUid) {
                 status: 'pending',
                 timestamp: Date.now()
             }).then(() => {
-                showCodeMessage('Заявка отправлена!', true);
+                showProfileMessage('Заявка отправлена!', true);
                 searchResults.style.display = 'none';
             }).catch(err => {
-                showCodeMessage('Ошибка: ' + err.message, false);
+                showProfileMessage('Ошибка: ' + err.message, false);
             });
         });
 }
 
 // ============================================================
-// 5. БЛОКИРОВКА
+// 6. БЛОКИРОВКА
 // ============================================================
 function blockUser(uid) {
     const blockedList = currentUserProfile.blocked || [];
     if (blockedList.includes(uid)) {
-        showCodeMessage('Пользователь уже заблокирован.', false);
+        showProfileMessage('Пользователь уже заблокирован.', false);
         return;
     }
     blockedList.push(uid);
     db.ref('users/' + currentUser.uid + '/blocked').set(blockedList)
         .then(() => {
             currentUserProfile.blocked = blockedList;
-            showCodeMessage('Пользователь заблокирован.', true);
+            showProfileMessage('Пользователь заблокирован.', true);
             backToChatList.click();
         })
         .catch(err => {
-            showCodeMessage('Ошибка: ' + err.message, false);
+            showProfileMessage('Ошибка: ' + err.message, false);
         });
 }
 
 // ============================================================
-// 6. ВСПОМОГАТЕЛЬНЫЕ
+// 7. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 // ============================================================
-function showMessage(text, isSuccess = true) {
-    messageBox.className = 'message show';
-    if (isSuccess) {
-        messageBox.classList.add('success');
-        messageBox.querySelector('.icon').textContent = '✅';
-    } else {
-        messageBox.classList.remove('success');
-        messageBox.querySelector('.icon').textContent = '⚠️';
-    }
-    messageText.textContent = text;
-    setTimeout(() => { messageBox.classList.remove('show'); }, 5000);
+function showLoginMessage(text, success) {
+    loginMessage.style.display = 'flex';
+    loginMessage.className = 'message show' + (success ? ' success' : '');
+    loginMessage.querySelector('.icon').textContent = success ? '✅' : '⚠️';
+    loginMessageText.textContent = text;
+    setTimeout(() => loginMessage.style.display = 'none', 5000);
 }
 
-function showCodeMessage(text, success = true) {
-    codeMessage.style.display = 'flex';
-    if (success) {
-        codeMessage.classList.add('success');
-        codeMessage.querySelector('.icon').textContent = '✅';
-    } else {
-        codeMessage.classList.remove('success');
-        codeMessage.querySelector('.icon').textContent = '⚠️';
-    }
-    codeMessageText.textContent = text;
-    setTimeout(() => { codeMessage.style.display = 'none'; }, 5000);
+function showCodeLoginMessage(text, success) {
+    codeLoginMessage.style.display = 'flex';
+    codeLoginMessage.className = 'message show' + (success ? ' success' : '');
+    codeLoginMessage.querySelector('.icon').textContent = success ? '✅' : '⚠️';
+    codeLoginMessageText.textContent = text;
+    setTimeout(() => codeLoginMessage.style.display = 'none', 5000);
 }
 
-// ============================================================
-// 7. ВЫХОД
-// ============================================================
-logoutBtn.addEventListener('click', () => {
-    auth.signOut().then(() => {
-        if (messagesListener) {
-            messagesListener.off();
-            messagesListener = null;
-        }
-        currentUser = null;
-        currentUserProfile = null;
-        authBox.style.display = 'block';
-        profileBox.style.display = 'none';
-        chatBox.style.display = 'none';
-        searchResults.style.display = 'none';
-        chatList.innerHTML = '';
-        messagesContainer.innerHTML = '';
-        activeChat.style.display = 'none';
-        chatList.style.display = 'block';
-        document.getElementById('searchBox').style.display = 'flex';
-        emailInput.value = '';
-        step1.style.display = 'block';
-        step2.style.display = 'none';
-        codeInput.value = '';
-    });
-});
+function showSetPasswordMessage(text, success) {
+    setPasswordMessage.style.display = 'flex';
+    setPasswordMessage.className = 'message show' + (success ? ' success' : '');
+    setPasswordMessage.querySelector('.icon').textContent = success ? '✅' : '⚠️';
+    setPasswordMessageText.textContent = text;
+    setTimeout(() => setPasswordMessage.style.display = 'none', 5000);
+}
+
+function showProfileMessage(text, success) {
+    profileMessage.style.display = 'flex';
+    profileMessage.className = 'message show' + (success ? ' success' : '');
+    profileMessage.querySelector('.icon').textContent = success ? '✅' : '⚠️';
+    profileMessageText.textContent = text;
+    setTimeout(() => profileMessage.style.display = 'none', 5000);
+}
+
+function send2FACode(email) {
+    const url = `${FIREBASE_DB_URL}/emailQueue.json`;
+    const data = { email, status: 'pending', timestamp: Date.now() };
+    return fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    }).then(res => res.json());
+}
+
+function verify2FACode(email, code) {
+    const emailKey = email.replace(/\./g, '_');
+    const url = `${FIREBASE_DB_URL}/codes/${emailKey}.json`;
+    return fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            if (!data || data.code !== code || Date.now() - data.createdAt > 10*60*1000) {
+                return false;
+            }
+            fetch(url, { method: 'DELETE' }).catch(() => {});
+            return true;
+        });
+}
 
 // ============================================================
 // 8. СОСТОЯНИЕ АВТОРИЗАЦИИ
@@ -755,29 +918,38 @@ auth.onAuthStateChanged((user) => {
     if (user) {
         currentUser = user;
         db.ref('users/' + user.uid).once('value')
-            .then((snapshot) => {
+            .then(snapshot => {
                 const data = snapshot.val();
                 if (data) {
                     currentUserProfile = data;
-                    showChat();
+                    if (!data.password) {
+                        showSetPassword(user);
+                    } else {
+                        showChat();
+                    }
                 } else {
-                    showProfileForm();
+                    showSetPassword(user);
                 }
             })
             .catch(() => {
-                showProfileForm();
+                showSetPassword(user);
             });
     } else {
-        currentUser = null;
-        currentUserProfile = null;
-        authBox.style.display = 'block';
+        authBox.style.display = 'flex';
         profileBox.style.display = 'none';
         chatBox.style.display = 'none';
-        if (messagesListener) {
-            messagesListener.off();
-            messagesListener = null;
-        }
-        step1.style.display = 'block';
-        step2.style.display = 'none';
+        setPasswordBox.style.display = 'none';
+        if (messagesListener) messagesListener.off();
+        currentUser = null;
+        currentUserProfile = null;
     }
 });
+
+// ============================================================
+// 9. ВЫХОД
+// ============================================================
+logoutBtn.addEventListener('click', () => {
+    auth.signOut();
+});
+
+settingsBtn.addEventListener('click', openProfile);
