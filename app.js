@@ -29,6 +29,7 @@ let tempUserForPassword = null;
 let statusListener = null;
 let typingListener = null;
 let typingTimeout = null;
+let friendRequestsListener = null; // слушатель для заявок
 
 const FIREBASE_DB_URL = 'https://zing-4a547-default-rtdb.europe-west1.firebasedatabase.app';
 
@@ -650,6 +651,8 @@ function showChat() {
     updateChatHeader();
     loadChatList();
     updateRequestsBadge();
+    // Подписываемся на новые заявки в реальном времени
+    listenForFriendRequests();
     // Устанавливаем статус текущего пользователя
     setUserStatus(currentUser.uid, true);
 }
@@ -985,6 +988,7 @@ function deleteMessage(chatId, messageId, forEveryone = false) {
     }
 }
 
+// ===== Возврат в список чатов (с принудительным обновлением) =====
 backToChatList.addEventListener('click', () => {
     if (messagesListener) {
         messagesListener.off();
@@ -998,6 +1002,8 @@ backToChatList.addEventListener('click', () => {
     callBtn.style.display = 'none';
     if (typingListener) typingListener.off();
     if (statusListener) statusListener.off();
+    // Принудительно обновляем список чатов
+    loadChatList();
 });
 
 // ============================================================
@@ -1069,7 +1075,7 @@ function sendFriendRequest(toUid) {
 }
 
 // ============================================================
-// 9. ЗАПРОСЫ
+// 9. ЗАПРОСЫ (реальное время)
 // ============================================================
 function updateRequestsBadge() {
     if (!currentUser) return;
@@ -1089,6 +1095,27 @@ function updateRequestsBadge() {
             }
         })
         .catch(err => console.error('Ошибка обновления бейджа:', err));
+}
+
+// Слушатель для новых входящих заявок (обновляет бейдж в реальном времени)
+function listenForFriendRequests() {
+    if (friendRequestsListener) {
+        friendRequestsListener.off();
+        friendRequestsListener = null;
+    }
+    if (!currentUser) return;
+    const requestsRef = db.ref('friendRequests').orderByChild('to').equalTo(currentUser.uid);
+    friendRequestsListener = requestsRef.on('child_added', (snapshot) => {
+        const request = snapshot.val();
+        if (request && request.status === 'pending') {
+            // Обновляем бейдж
+            updateRequestsBadge();
+            // Если модалка заявок открыта, обновляем список
+            if (requestsModal.classList.contains('show')) {
+                loadRequests();
+            }
+        }
+    });
 }
 
 async function loadRequests() {
@@ -1562,6 +1589,7 @@ auth.onAuthStateChanged((user) => {
         if (messagesListener) messagesListener.off();
         if (statusListener) statusListener.off();
         if (typingListener) typingListener.off();
+        if (friendRequestsListener) friendRequestsListener.off();
         currentUser = null;
         currentUserProfile = null;
         if (peerConnection) {
