@@ -952,7 +952,7 @@ function sendFriendRequest(toUid) {
 }
 
 // ============================================================
-// 9. ЗАПРОСЫ
+// 9. ЗАПРОСЫ (ИСПРАВЛЕННАЯ ВЕРСИЯ)
 // ============================================================
 function updateRequestsBadge() {
     if (!currentUser) return;
@@ -1139,6 +1139,7 @@ function addRequestListeners() {
     });
 }
 
+// ===== ИСПРАВЛЕННАЯ ФУНКЦИЯ ПРИНЯТИЯ ЗАЯВКИ =====
 function acceptRequest(key, friendUid) {
     const chatId = [currentUser.uid, friendUid].sort().join('_');
     const chatRef = db.ref('chats/' + chatId);
@@ -1147,12 +1148,24 @@ function acceptRequest(key, friendUid) {
         lastMessage: 'Начните общение!',
         lastTimestamp: Date.now()
     }).then(() => {
+        // Удаляем заявку
         return db.ref('friendRequests/' + key).remove();
     }).then(() => {
-        showProfileMessage('Заявка принята! Чат создан.', true);
-        loadRequests();
+        showProfileMessage('✅ Заявка принята! Чат создан.', true);
+        // Закрываем модалку
+        requestsModal.classList.remove('show');
+        // Обновляем бейдж
         updateRequestsBadge();
+        // Загружаем список чатов
         loadChatList();
+        // Получаем данные партнёра
+        return db.ref('users/' + friendUid).once('value');
+    }).then(snapshot => {
+        const partner = snapshot.val();
+        if (partner) {
+            // Открываем чат с этим пользователем
+            openChat(chatId, friendUid, partner);
+        }
     }).catch(err => {
         showProfileMessage('Ошибка: ' + err.message, false);
     });
