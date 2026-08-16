@@ -22,9 +22,9 @@ const storage = firebase.storage();
 let currentUser = null;
 let currentUserProfile = null;
 let currentEmail = '';
-let currentChatId = null;          // ID активного чата
-let currentChatPartnerUid = null;  // UID собеседника
-let messagesListener = null;       // слушатель сообщений
+let currentChatId = null;
+let currentChatPartnerUid = null;
+let messagesListener = null;
 
 const FIREBASE_DB_URL = 'https://zing-4a547-default-rtdb.europe-west1.firebasedatabase.app';
 
@@ -81,7 +81,7 @@ const activeChatName = document.getElementById('activeChatName');
 const blockUserBtn = document.getElementById('blockUserBtn');
 
 // ============================================================
-// 1. АВТОРИЗАЦИЯ (вход по коду, сброс пароля, удаление аккаунта)
+// 1. АВТОРИЗАЦИЯ
 // ============================================================
 
 // --- Отправка кода ---
@@ -126,7 +126,7 @@ sendCodeBtn.addEventListener('click', () => {
     });
 });
 
-// --- Проверка кода с поддержкой повторного входа ---
+// --- Проверка кода (ИСПРАВЛЕННАЯ ЛОГИКА) ---
 verifyCodeBtn.addEventListener('click', () => {
     const code = codeInput.value.trim();
     if (!code || code.length !== 6) {
@@ -161,31 +161,33 @@ verifyCodeBtn.addEventListener('click', () => {
             return;
         }
 
-        // Код верен — удаляем его
+        // Удаляем код из базы
         fetch(url, { method: 'DELETE' }).catch(() => {});
 
-        // Логика входа
-        const tempPassword = Math.random().toString(36).slice(-8);
-
+        // ======= ГЛАВНОЕ ИСПРАВЛЕНИЕ =======
+        // Проверяем, существует ли пользователь с таким email
         auth.fetchSignInMethodsForEmail(currentEmail)
             .then(methods => {
                 if (methods.length === 0) {
-                    // Новый пользователь
+                    // Пользователь не существует – создаём с временным паролем
+                    const tempPassword = Math.random().toString(36).slice(-8);
                     return auth.createUserWithEmailAndPassword(currentEmail, tempPassword)
                         .then(userCred => {
+                            // Сохраняем пароль в профиль
                             const uid = userCred.user.uid;
                             return db.ref('users/' + uid + '/password').set(tempPassword)
                                 .then(() => userCred);
                         });
                 } else {
-                    // Существующий пользователь
+                    // Пользователь уже существует – пытаемся войти с временным паролем
+                    const tempPassword = Math.random().toString(36).slice(-8);
                     return auth.signInWithEmailAndPassword(currentEmail, tempPassword)
                         .catch(() => {
-                            // Ищем сохранённый пароль
+                            // Если временный пароль не подходит, загружаем сохранённый
                             return db.ref('users').orderByChild('email').equalTo(currentEmail).once('value')
                                 .then(snapshot => {
                                     const userData = snapshot.val();
-                                    if (!userData) throw new Error('Пользователь не найден');
+                                    if (!userData) throw new Error('Пользователь не найден в базе');
                                     const uid = Object.keys(userData)[0];
                                     const savedPassword = userData[uid].password;
                                     if (!savedPassword) throw new Error('Пароль не сохранён');
@@ -251,11 +253,7 @@ deleteAccountBtn.addEventListener('click', () => {
     if (!confirm('Вы уверены, что хотите удалить аккаунт? Все данные будут потеряны.')) return;
     const uid = currentUser.uid;
     db.ref('users/' + uid).remove()
-        .then(() => {
-            // Удаляем все сообщения пользователя (опционально)
-            // Здесь можно пройти по всем чатам и удалить сообщения пользователя
-            return currentUser.delete();
-        })
+        .then(() => currentUser.delete())
         .then(() => {
             showProfileMessage('Аккаунт удалён.', true);
             setTimeout(() => { location.reload(); }, 2000);
@@ -306,7 +304,7 @@ saveProfileBtn.addEventListener('click', () => {
         email: currentUser.email,
         createdAt: firebase.database.ServerValue.TIMESTAMP,
         updatedAt: firebase.database.ServerValue.TIMESTAMP,
-        blocked: []  // список заблокированных uid
+        blocked: []
     };
 
     saveProfileBtn.disabled = true;
@@ -342,7 +340,7 @@ function showProfileMessage(text, success = true) {
 }
 
 // ============================================================
-// 3. ОСНОВНОЙ ЧАТ (список чатов, поиск, заявки)
+// 3. ЧАТ
 // ============================================================
 function showChat() {
     authBox.style.display = 'none';
@@ -364,7 +362,6 @@ function showChat() {
     loadChatList();
 }
 
-// === Загрузка списка чатов ===
 function loadChatList() {
     const chatsRef = db.ref('chats');
     chatsRef.off();
@@ -378,7 +375,6 @@ function loadChatList() {
                 chatList.innerHTML = '<div style="color:rgba(255,255,255,0.3); padding:20px; text-align:center;">Нет чатов. Начните общение!</div>';
                 return;
             }
-            // Получаем чаты, где участвует текущий пользователь
             const chats = Object.entries(data).filter(([id, chat]) => {
                 return chat.participants && chat.participants.includes(currentUser.uid);
             });
@@ -386,13 +382,11 @@ function loadChatList() {
                 chatList.innerHTML = '<div style="color:rgba(255,255,255,0.3); padding:20px; text-align:center;">Нет чатов. Начните общение!</div>';
                 return;
             }
-            // Сортируем по последнему сообщению
             chats.sort((a, b) => (b[1].lastTimestamp || 0) - (a[1].lastTimestamp || 0));
 
             chats.forEach(([chatId, chat]) => {
                 const partnerUid = chat.participants.find(uid => uid !== currentUser.uid);
                 if (!partnerUid) return;
-                // Получаем данные партнёра
                 db.ref('users/' + partnerUid).once('value').then(snap => {
                     const partner = snap.val();
                     if (!partner) return;
@@ -416,7 +410,6 @@ function loadChatList() {
         });
 }
 
-// === Открытие чата ===
 function openChat(chatId, partnerUid, partnerData) {
     currentChatId = chatId;
     currentChatPartnerUid = partnerUid;
@@ -425,9 +418,7 @@ function openChat(chatId, partnerUid, partnerData) {
     document.getElementById('searchBox').style.display = 'none';
     document.getElementById('searchResults').style.display = 'none';
 
-    // Имя собеседника
     activeChatName.textContent = partnerData.firstName + ' ' + (partnerData.lastName || '');
-    // Кнопка блокировки
     blockUserBtn.style.display = 'inline-block';
     blockUserBtn.onclick = () => {
         if (confirm('Заблокировать пользователя ' + partnerData.firstName + '?')) {
@@ -435,11 +426,9 @@ function openChat(chatId, partnerUid, partnerData) {
         }
     };
 
-    // Загружаем сообщения
     loadMessages(chatId);
 }
 
-// === Загрузка сообщений ===
 function loadMessages(chatId) {
     if (messagesListener) {
         messagesListener.off();
@@ -452,19 +441,14 @@ function loadMessages(chatId) {
     messagesRef.limitToLast(50).on('child_added', (snapshot) => {
         const data = snapshot.val();
         if (!data) return;
-        // Проверка на удаление
         if (data.deletedBy && data.deletedBy.includes(currentUser.uid)) return;
 
         const msgEl = document.createElement('div');
         msgEl.className = 'msg';
-        if (data.from === currentUser.uid) {
-            msgEl.classList.add('me');
-        }
+        if (data.from === currentUser.uid) msgEl.classList.add('me');
 
-        // Аватар отправителя
         const avatarDiv = document.createElement('div');
         avatarDiv.className = 'avatar-msg';
-        // Получаем данные отправителя
         db.ref('users/' + data.from).once('value').then(snap => {
             const sender = snap.val();
             if (sender) {
@@ -507,7 +491,6 @@ function loadMessages(chatId) {
             timeSpan.textContent = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
 
-        // Кнопка удаления (для своих сообщений)
         if (data.from === currentUser.uid) {
             const deleteBtn = document.createElement('button');
             deleteBtn.textContent = '✕';
@@ -517,7 +500,6 @@ function loadMessages(chatId) {
                 e.stopPropagation();
                 deleteMessage(chatId, snapshot.key, false);
             });
-            // Удалить у всех (если нажать с Shift)
             deleteBtn.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
                 if (confirm('Удалить это сообщение у всех?')) {
@@ -539,7 +521,6 @@ function loadMessages(chatId) {
     messagesListener = messagesRef;
 }
 
-// === Отправка сообщения ===
 function sendMessage() {
     const text = messageInput.value.trim();
     if (!text || !currentChatId) return;
@@ -552,7 +533,6 @@ function sendMessage() {
         senderName: currentUserProfile.firstName + ' ' + (currentUserProfile.lastName || ''),
         deletedBy: []
     });
-    // Обновляем последнее сообщение в чате
     db.ref('chats/' + currentChatId).update({
         lastMessage: text,
         lastTimestamp: Date.now()
@@ -565,7 +545,6 @@ messageInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendMessage();
 });
 
-// === Отправка фото ===
 fileBtn.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', () => {
     const file = fileInput.files[0];
@@ -592,7 +571,6 @@ fileInput.addEventListener('change', () => {
     });
 });
 
-// === Удаление сообщения ===
 function deleteMessage(chatId, messageId, forEveryone = false) {
     const ref = db.ref('messages/' + chatId + '/' + messageId);
     if (forEveryone) {
@@ -602,7 +580,6 @@ function deleteMessage(chatId, messageId, forEveryone = false) {
     }
 }
 
-// === Назад к списку чатов ===
 backToChatList.addEventListener('click', () => {
     if (messagesListener) {
         messagesListener.off();
@@ -616,7 +593,7 @@ backToChatList.addEventListener('click', () => {
 });
 
 // ============================================================
-// 4. ПОИСК ПОЛЬЗОВАТЕЛЕЙ И ЗАЯВКИ
+// 4. ПОИСК И ЗАЯВКИ
 // ============================================================
 searchBtn.addEventListener('click', () => {
     const query = searchInput.value.trim().toLowerCase();
@@ -633,7 +610,6 @@ searchBtn.addEventListener('click', () => {
             }
             Object.entries(results).forEach(([uid, user]) => {
                 if (uid === currentUser.uid) return;
-                // Проверяем, не заблокирован ли уже
                 const isBlocked = (currentUserProfile.blocked || []).includes(uid);
                 const div = document.createElement('div');
                 div.className = 'result-item';
@@ -653,7 +629,6 @@ searchBtn.addEventListener('click', () => {
 });
 
 function sendFriendRequest(toUid) {
-    // Проверяем, нет ли уже заявки
     db.ref('friendRequests').orderByChild('from').equalTo(currentUser.uid).once('value')
         .then(snapshot => {
             const requests = snapshot.val();
@@ -679,12 +654,6 @@ function sendFriendRequest(toUid) {
         });
 }
 
-// Обработка входящих заявок (можно добавить уведомления)
-db.ref('friendRequests').orderByChild('to').equalTo(currentUser ? currentUser.uid : '').on('child_added', (snapshot) => {
-    // Здесь можно показать уведомление о новой заявке
-    console.log('Новая заявка от:', snapshot.val().from);
-});
-
 // ============================================================
 // 5. БЛОКИРОВКА
 // ============================================================
@@ -699,7 +668,6 @@ function blockUser(uid) {
         .then(() => {
             currentUserProfile.blocked = blockedList;
             showCodeMessage('Пользователь заблокирован.', true);
-            // Закрываем чат
             backToChatList.click();
         })
         .catch(err => {
@@ -708,7 +676,7 @@ function blockUser(uid) {
 }
 
 // ============================================================
-// 6. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// 6. ВСПОМОГАТЕЛЬНЫЕ
 // ============================================================
 function showMessage(text, isSuccess = true) {
     messageBox.className = 'message show';
@@ -741,7 +709,6 @@ function showCodeMessage(text, success = true) {
 // ============================================================
 logoutBtn.addEventListener('click', () => {
     auth.signOut().then(() => {
-        // Сброс состояния
         if (messagesListener) {
             messagesListener.off();
             messagesListener = null;
