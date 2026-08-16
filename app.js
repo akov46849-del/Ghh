@@ -126,7 +126,7 @@ sendCodeBtn.addEventListener('click', () => {
     });
 });
 
-// --- Проверка кода (ИСПРАВЛЕННАЯ ЛОГИКА) ---
+// --- Проверка кода (ИСПРАВЛЕННАЯ + ЛОГИРОВАНИЕ) ---
 verifyCodeBtn.addEventListener('click', () => {
     const code = codeInput.value.trim();
     if (!code || code.length !== 6) {
@@ -164,48 +164,90 @@ verifyCodeBtn.addEventListener('click', () => {
         // Удаляем код
         fetch(url, { method: 'DELETE' }).catch(() => {});
 
-        // ========== ИСПРАВЛЕННАЯ ЛОГИКА ВХОДА (TRY/CATCH) ==========
-        const tempPassword = Math.random().toString(36).slice(-8);
+        // ========== НАДЁЖНАЯ ЛОГИКА С ДВОЙНОЙ ПРОВЕРКОЙ ==========
+        console.log('🔍 Проверяем существование пользователя для:', currentEmail);
 
-        // Пытаемся создать пользователя
-        auth.createUserWithEmailAndPassword(currentEmail, tempPassword)
-            .then(userCred => {
-                // Успешно создан новый пользователь
-                const uid = userCred.user.uid;
-                return db.ref('users/' + uid + '/password').set(tempPassword)
-                    .then(() => userCred);
+        // Сначала проверяем, существует ли пользователь в Auth
+        auth.fetchSignInMethodsForEmail(currentEmail)
+            .then(methods => {
+                console.log('📋 Методы входа для этого email:', methods);
+                if (methods.length > 0) {
+                    // Пользователь уже существует в Auth
+                    console.log('👤 Пользователь существует, ищем пароль в базе...');
+                    // Ищем пароль в базе данных
+                    return db.ref('users').orderByChild('email').equalTo(currentEmail).once('value')
+                        .then(snapshot => {
+                            const userData = snapshot.val();
+                            if (!userData) {
+                                // Пользователь есть в Auth, но нет в базе – создаём профиль
+                                console.log('⚠️ Пользователь в Auth, но нет профиля в базе. Создаём новый профиль.');
+                                // Пытаемся войти с временным паролем и создать профиль
+                                const tempPass = Math.random().toString(36).slice(-8);
+                                return auth.signInWithEmailAndPassword(currentEmail, tempPass)
+                                    .catch(() => {
+                                        // Если временный пароль не подходит, создаём новый через админку? Но у нас нет админки.
+                                        // Поэтому просто создаём нового пользователя с новым паролем (заменяем старого)
+                                        console.log('🔄 Пересоздаём пользователя...');
+                                        return auth.createUserWithEmailAndPassword(currentEmail, tempPass)
+                                            .then(userCred => {
+                                                const uid = userCred.user.uid;
+                                                return db.ref('users/' + uid).set({
+                                                    email: currentEmail,
+                                                    firstName: currentEmail.split('@')[0],
+                                                    lastName: '',
+                                                    gender: 'Секрет',
+                                                    bio: '',
+                                                    avatar: '',
+                                                    createdAt: Date.now(),
+                                                    updatedAt: Date.now(),
+                                                    blocked: [],
+                                                    password: tempPass
+                                                }).then(() => userCred);
+                                            });
+                                    });
+                            } else {
+                                // Пользователь есть и в Auth, и в базе
+                                const uid = Object.keys(userData)[0];
+                                const savedPassword = userData[uid].password;
+                                console.log('🔑 Найден пароль в базе:', savedPassword ? 'есть' : 'нет');
+                                if (!savedPassword) {
+                                    // Пароль не сохранён – создаём новый
+                                    const newPass = Math.random().toString(36).slice(-8);
+                                    return db.ref('users/' + uid + '/password').set(newPass)
+                                        .then(() => auth.signInWithEmailAndPassword(currentEmail, newPass));
+                                } else {
+                                    return auth.signInWithEmailAndPassword(currentEmail, savedPassword);
+                                }
+                            }
+                        });
+                } else {
+                    // Пользователь не существует в Auth – создаём нового
+                    console.log('🆕 Пользователь не существует, создаём нового.');
+                    const tempPass = Math.random().toString(36).slice(-8);
+                    return auth.createUserWithEmailAndPassword(currentEmail, tempPass)
+                        .then(userCred => {
+                            const uid = userCred.user.uid;
+                            return db.ref('users/' + uid).set({
+                                email: currentEmail,
+                                firstName: currentEmail.split('@')[0],
+                                lastName: '',
+                                gender: 'Секрет',
+                                bio: '',
+                                avatar: '',
+                                createdAt: Date.now(),
+                                updatedAt: Date.now(),
+                                blocked: [],
+                                password: tempPass
+                            }).then(() => userCred);
+                        });
+                }
             })
             .then(() => {
                 showCodeMessage('✅ Вход выполнен!', true);
             })
             .catch(err => {
-                if (err.code === 'auth/email-already-in-use') {
-                    // Пользователь уже существует – ищем пароль в базе
-                    db.ref('users').orderByChild('email').equalTo(currentEmail).once('value')
-                        .then(snapshot => {
-                            const userData = snapshot.val();
-                            if (!userData) throw new Error('Пользователь не найден в базе');
-                            const uid = Object.keys(userData)[0];
-                            const savedPassword = userData[uid].password;
-                            if (!savedPassword) {
-                                // Пароль не сохранён – создаём новый
-                                const newPass = Math.random().toString(36).slice(-8);
-                                return db.ref('users/' + uid + '/password').set(newPass)
-                                    .then(() => auth.signInWithEmailAndPassword(currentEmail, newPass));
-                            } else {
-                                return auth.signInWithEmailAndPassword(currentEmail, savedPassword);
-                            }
-                        })
-                        .then(() => {
-                            showCodeMessage('✅ Вход выполнен!', true);
-                        })
-                        .catch(loginErr => {
-                            showCodeMessage('Ошибка входа: ' + loginErr.message, false);
-                        });
-                } else {
-                    // Другая ошибка
-                    showCodeMessage('Ошибка: ' + err.message, false);
-                }
+                console.error('❌ Ошибка входа:', err);
+                showCodeMessage('Ошибка: ' + err.message, false);
             });
     })
     .catch(err => {
