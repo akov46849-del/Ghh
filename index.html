@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
+        /* ===== ОБЩИЕ СТИЛИ ===== */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; overflow: hidden; }
         body { font-family: 'Inter', sans-serif; background: linear-gradient(145deg, #0f0c29, #302b63, #24243e); display: flex; justify-content: center; align-items: center; height: 100vh; padding: 0; }
@@ -21,8 +22,13 @@
         .sub { color: rgba(255,255,255,0.4); font-size: 14px; margin-bottom: 16px; }
         .input-group { margin-bottom: 16px; }
         .input-group label { display: block; color: rgba(255,255,255,0.7); font-size: 13px; font-weight: 500; margin-bottom: 6px; }
-        .input-group input, .input-group select, .input-group textarea { width: 100%; padding: 14px 16px; border-radius: 20px; border: 1.5px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.05); color: #fff; font-size: 15px; outline: none; transition: 0.3s; }
-        .input-group input:focus, .input-group select:focus, .input-group textarea:focus { border-color: #f5576c; background: rgba(255,255,255,0.08); box-shadow: 0 0 0 4px rgba(245,87,108,0.15); }
+        .input-group input, .input-group select, .input-group textarea {
+            width: 100%; padding: 14px 16px; border-radius: 20px; border: 1.5px solid rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.05); color: #fff; font-size: 15px; outline: none; transition: 0.3s;
+        }
+        .input-group input:focus, .input-group select:focus, .input-group textarea:focus {
+            border-color: #f5576c; background: rgba(255,255,255,0.08); box-shadow: 0 0 0 4px rgba(245,87,108,0.15);
+        }
         .input-group input::placeholder, .input-group textarea::placeholder { color: rgba(255,255,255,0.25); }
         .input-group select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='white' stroke-width='1.5' fill='none'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 16px center; color: rgba(255,255,255,0.85); }
         .input-group select option { background: #24243e; color: #fff; }
@@ -49,6 +55,7 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
         .footer { margin-top: 20px; text-align: center; color: rgba(255,255,255,0.15); font-size: 12px; }
 
+        /* Вкладки */
         .auth-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
         .auth-tabs button { flex: 1; min-width: 80px; padding: 10px 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.6); border-radius: 60px; cursor: pointer; transition: 0.3s; font-size: 13px; font-weight: 500; }
         .auth-tabs button.active { background: linear-gradient(135deg, #f093fb, #f5576c); color: #fff; border-color: transparent; }
@@ -56,20 +63,13 @@
         .auth-panel { display: none; }
         .auth-panel.active { display: block; }
 
-        .password-generator { background: rgba(255,255,255,0.04); border-radius: 16px; padding: 16px; margin: 12px 0; }
-        .password-generator .options { display: flex; gap: 8px; flex-wrap: wrap; }
-        .password-generator .options button { flex: 1; min-width: 80px; padding: 8px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: #fff; cursor: pointer; transition: 0.2s; font-size: 12px; word-break: break-all; }
-        .password-generator .options button:hover { background: rgba(255,255,255,0.12); border-color: #f5576c; }
-        .password-generator .options button.selected { background: linear-gradient(135deg, #f093fb, #f5576c); border-color: transparent; }
-
-        #authBox, #profileBox, #chatBox, #setPasswordBox { display: none; flex-direction: column; height: 100%; }
+        #authBox, #profileBox, #chatBox { display: none; flex-direction: column; height: 100%; }
         #authBox { display: flex; justify-content: center; }
         #profileBox { flex: 1; overflow-y: auto; }
         #chatBox { flex: 1; }
-        #setPasswordBox { flex: 1; overflow-y: auto; justify-content: center; }
         .mt-10 { margin-top: 10px; }
-        .hidden { display: none; }
 
+        /* ===== ЧАТ ===== */
         .chat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-shrink: 0; padding: 4px 0; }
         .chat-header .user-info { display: flex; align-items: center; gap: 12px; }
         .chat-header .user-info .avatar-small { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #f093fb, #f5576c); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; color: #fff; flex-shrink: 0; background-size: cover; background-position: center; }
@@ -78,7 +78,6 @@
         .chat-header .user-info .name .chat-status.online { color: #4ade80; }
         .chat-header .user-info .name .chat-status.typing { color: #f093fb; font-style: italic; animation: pulse 1s infinite; }
         @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
-
         .chat-header .actions { display: flex; gap: 8px; align-items: center; }
         .chat-header .actions button { background: rgba(255,255,255,0.06); border: none; color: rgba(255,255,255,0.6); padding: 8px 12px; border-radius: 30px; cursor: pointer; font-size: 16px; transition: 0.2s; display: flex; align-items: center; gap: 6px; }
         .chat-header .actions button:hover { background: rgba(255,255,255,0.12); color: #fff; }
@@ -132,7 +131,6 @@
         .input-area input[type="file"] { display: none; }
 
         .settings-group { margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 16px; }
-
         .switch { position: relative; display: inline-block; width: 48px; height: 26px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.2); transition: .3s; border-radius: 34px; }
@@ -153,7 +151,7 @@
         .request-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 16px; margin-bottom: 10px; }
         .request-item .info { color: #fff; }
         .request-item .info .name { font-weight: 600; }
-        .request-item .info .email { font-size: 13px; opacity: 0.6; }
+        .request-item .info .username { font-size: 13px; opacity: 0.6; }
         .request-item .actions { display: flex; gap: 8px; }
         .request-item .actions button { padding: 6px 14px; border: none; border-radius: 30px; cursor: pointer; font-size: 13px; font-weight: 500; }
         .request-item .actions .accept { background: #4ade80; color: #000; }
@@ -179,91 +177,50 @@
             <div class="logo"><i class="fas fa-bolt"></i><h1>ZING</h1></div>
             <p class="sub">Вход или регистрация</p>
             <div class="auth-tabs">
-                <button class="active" data-tab="login-password">Пароль</button>
-                <button data-tab="login-code">По коду</button>
+                <button class="active" data-tab="login">Вход</button>
                 <button data-tab="register">Регистрация</button>
             </div>
-            <!-- Панель входа по паролю -->
-            <div id="login-password" class="auth-panel active">
+
+            <!-- Панель входа -->
+            <div id="login" class="auth-panel active">
                 <div class="input-group">
-                    <label><i class="far fa-envelope"></i> Email</label>
-                    <input type="email" id="loginEmail" placeholder="example@mail.com">
+                    <label><i class="fas fa-user"></i> Логин</label>
+                    <input type="text" id="loginUsername" placeholder="Введите логин">
                 </div>
                 <div class="input-group">
                     <label><i class="fas fa-lock"></i> Пароль</label>
                     <input type="password" id="loginPassword" placeholder="Введите пароль">
                 </div>
-                <button class="btn" id="loginPasswordBtn">Войти</button>
+                <button class="btn" id="loginBtn">Войти</button>
                 <button class="btn btn-secondary mt-10" id="resetPasswordBtn">Забыли пароль?</button>
                 <div id="loginMessage" class="message" style="display:none;">
                     <span class="icon">⚠️</span>
                     <span id="loginMessageText"></span>
                 </div>
             </div>
-            <!-- Панель входа по коду -->
-            <div id="login-code" class="auth-panel">
-                <div class="input-group">
-                    <label><i class="far fa-envelope"></i> Email</label>
-                    <input type="email" id="codeLoginEmail" placeholder="example@mail.com">
-                </div>
-                <button class="btn" id="sendCodeLoginBtn">Отправить код</button>
-                <div id="codeLoginStep2" style="display:none;">
-                    <div class="input-group mt-10">
-                        <label><i class="fas fa-key"></i> Код из письма</label>
-                        <input type="text" id="codeLoginInput" placeholder="123456" maxlength="6">
-                    </div>
-                    <button class="btn" id="verifyCodeLoginBtn">Войти</button>
-                    <div id="codeLoginMessage" class="message" style="display:none;">
-                        <span class="icon">⚠️</span>
-                        <span id="codeLoginMessageText"></span>
-                    </div>
-                </div>
-            </div>
+
             <!-- Панель регистрации -->
             <div id="register" class="auth-panel">
                 <div class="input-group">
-                    <label><i class="far fa-envelope"></i> Email</label>
-                    <input type="email" id="registerEmail" placeholder="example@mail.com">
+                    <label><i class="fas fa-user"></i> Имя</label>
+                    <input type="text" id="registerName" placeholder="Ваше имя">
                 </div>
-                <button class="btn" id="sendCodeRegisterBtn">Отправить код</button>
-                <div id="registerStep2" style="display:none;">
-                    <div class="input-group mt-10">
-                        <label><i class="fas fa-key"></i> Код из письма</label>
-                        <input type="text" id="registerCodeInput" placeholder="123456" maxlength="6">
-                    </div>
-                    <button class="btn" id="verifyRegisterBtn">Зарегистрироваться</button>
-                    <div id="registerMessage" class="message" style="display:none;">
-                        <span class="icon">⚠️</span>
-                        <span id="registerMessageText"></span>
-                    </div>
+                <div class="input-group">
+                    <label><i class="fas fa-at"></i> Логин (уникальный)</label>
+                    <input type="text" id="registerUsername" placeholder="Придумайте логин">
+                </div>
+                <div class="input-group">
+                    <label><i class="fas fa-lock"></i> Пароль</label>
+                    <input type="password" id="registerPassword" placeholder="Придумайте пароль">
+                </div>
+                <button class="btn" id="registerBtn">Зарегистрироваться</button>
+                <div id="registerMessage" class="message" style="display:none;">
+                    <span class="icon">⚠️</span>
+                    <span id="registerMessageText"></span>
                 </div>
             </div>
-            <div class="footer">Безопасно и быстро</div>
-        </div>
-    </div>
 
-    <!-- ===== УСТАНОВКА ПАРОЛЯ ===== -->
-    <div id="setPasswordBox">
-        <div style="max-width: 400px; width: 100%; margin: auto;">
-            <div class="logo"><i class="fas fa-bolt"></i><h1>ZING</h1></div>
-            <p class="sub">Установите постоянный пароль</p>
-            <div class="input-group">
-                <label><i class="fas fa-lock"></i> Новый пароль</label>
-                <input type="password" id="newPassword" placeholder="Придумайте пароль">
-            </div>
-            <div class="input-group">
-                <label><i class="fas fa-lock"></i> Подтверждение пароля</label>
-                <input type="password" id="confirmPassword" placeholder="Повторите пароль">
-            </div>
-            <div class="password-generator">
-                <p style="color:rgba(255,255,255,0.6); font-size:13px; margin-bottom:8px;">Или выберите надёжный пароль:</p>
-                <div class="options" id="passwordOptions"></div>
-            </div>
-            <button class="btn" id="setPasswordBtn">Сохранить пароль</button>
-            <div id="setPasswordMessage" class="message" style="display:none;">
-                <span class="icon">⚠️</span>
-                <span id="setPasswordMessageText"></span>
-            </div>
+            <div class="footer">Безопасно и быстро</div>
         </div>
     </div>
 
@@ -281,11 +238,11 @@
         <div style="flex:1; overflow-y:auto;">
             <div class="input-group">
                 <label><i class="fas fa-user"></i> Имя <span style="color:#f5576c;">*</span></label>
-                <input type="text" id="profileFirstName" placeholder="Ваше имя">
+                <input type="text" id="profileName" placeholder="Ваше имя">
             </div>
             <div class="input-group">
-                <label><i class="fas fa-user-tag"></i> Фамилия <span style="color:rgba(255,255,255,0.3);">(необязательно)</span></label>
-                <input type="text" id="profileLastName" placeholder="Фамилия">
+                <label><i class="fas fa-at"></i> Логин</label>
+                <input type="text" id="profileUsername" placeholder="Ваш логин" disabled>
             </div>
             <div class="input-group">
                 <label><i class="fas fa-venus-mars"></i> Пол</label>
@@ -300,15 +257,7 @@
                 <textarea id="profileBio" placeholder="Расскажите о себе..." rows="3"></textarea>
             </div>
             <div class="settings-group">
-                <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0;">
-                    <span style="color:rgba(255,255,255,0.7);">Двухфакторная аутентификация</span>
-                    <label class="switch">
-                        <input type="checkbox" id="twoFactorToggle">
-                        <span class="slider round"></span>
-                    </label>
-                </div>
-                <button class="btn btn-secondary btn-sm" id="showPasswordBtn" style="width:auto;"><i class="fas fa-eye"></i> Показать пароль</button>
-                <button class="btn btn-secondary btn-sm mt-10" id="changePasswordBtn" style="width:auto;"><i class="fas fa-key"></i> Сменить пароль</button>
+                <button class="btn btn-secondary btn-sm" id="changePasswordBtn" style="width:auto;"><i class="fas fa-key"></i> Сменить пароль</button>
             </div>
             <button class="btn" id="saveProfileBtn"><i class="fas fa-check"></i> Сохранить профиль</button>
             <div class="settings-group">
@@ -340,7 +289,7 @@
         </div>
 
         <div id="searchBox">
-            <input type="text" id="searchInput" placeholder="Найти человека по почте...">
+            <input type="text" id="searchInput" placeholder="Найти человека по логину...">
             <button id="searchBtn"><i class="fas fa-search"></i></button>
         </div>
         <div id="searchResults"></div>
@@ -405,17 +354,28 @@
         <button id="hangupBtn" style="margin-top:16px; padding:12px 32px; background:#f5576c; border:none; border-radius:60px; color:#fff; font-size:18px; cursor:pointer;">Завершить</button>
     </div>
 
-    <!-- ===== МОДАЛКА ПАРОЛЯ ===== -->
+    <!-- ===== МОДАЛКА СМЕНЫ ПАРОЛЯ ===== -->
     <div class="modal-overlay" id="passwordModal">
         <div class="modal">
             <button class="modal-close" id="passwordModalClose">&times;</button>
-            <h2>Ваш пароль</h2>
+            <h2>Смена пароля</h2>
             <div class="input-group">
-                <label>Введите код из письма</label>
-                <input type="text" id="passwordModalCode" placeholder="123456" maxlength="6">
+                <label>Текущий пароль</label>
+                <input type="password" id="oldPassword" placeholder="Введите текущий пароль">
             </div>
-            <button class="btn" id="passwordModalConfirm">Подтвердить</button>
-            <div id="passwordModalResult" style="margin-top:16px; text-align:center; color:#fff; font-size:18px; font-weight:600; word-break:break-all;"></div>
+            <div class="input-group">
+                <label>Новый пароль</label>
+                <input type="password" id="newPassword" placeholder="Введите новый пароль">
+            </div>
+            <div class="input-group">
+                <label>Подтверждение</label>
+                <input type="password" id="confirmPassword" placeholder="Повторите новый пароль">
+            </div>
+            <button class="btn" id="changePasswordConfirmBtn">Изменить пароль</button>
+            <div id="passwordModalMessage" class="message" style="display:none;">
+                <span class="icon">⚠️</span>
+                <span id="passwordModalMessageText"></span>
+            </div>
         </div>
     </div>
 
