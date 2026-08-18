@@ -21,59 +21,40 @@ const storage = firebase.storage();
 // ============================================================
 let currentUser = null;
 let currentUserProfile = null;
-let currentEmail = '';
 let currentChatId = null;
 let currentChatPartnerUid = null;
 let messagesListener = null;
-let tempUserForPassword = null;
-let statusListener = null; // будет хранить функцию отмены
-let typingListener = null; // функция отмены
+let statusListener = null;
+let typingListener = null;
 let typingTimeout = null;
 let friendRequestsListener = null;
-let chatListListener = null;
-
-const FIREBASE_DB_URL = 'https://zing-4a547-default-rtdb.europe-west1.firebasedatabase.app';
 
 // ============================================================
-// DOM-ЭЛЕМЕНТЫ (все)
+// DOM-ЭЛЕМЕНТЫ
 // ============================================================
 const authBox = document.getElementById('authBox');
 const profileBox = document.getElementById('profileBox');
 const chatBox = document.getElementById('chatBox');
-const setPasswordBox = document.getElementById('setPasswordBox');
 
-const loginEmail = document.getElementById('loginEmail');
+// Вход
+const loginUsername = document.getElementById('loginUsername');
 const loginPassword = document.getElementById('loginPassword');
-const loginPasswordBtn = document.getElementById('loginPasswordBtn');
+const loginBtn = document.getElementById('loginBtn');
 const loginMessage = document.getElementById('loginMessage');
 const loginMessageText = document.getElementById('loginMessageText');
 const resetPasswordBtn = document.getElementById('resetPasswordBtn');
 
-const codeLoginEmail = document.getElementById('codeLoginEmail');
-const sendCodeLoginBtn = document.getElementById('sendCodeLoginBtn');
-const codeLoginStep2 = document.getElementById('codeLoginStep2');
-const codeLoginInput = document.getElementById('codeLoginInput');
-const verifyCodeLoginBtn = document.getElementById('verifyCodeLoginBtn');
-const codeLoginMessage = document.getElementById('codeLoginMessage');
-const codeLoginMessageText = document.getElementById('codeLoginMessageText');
-
-const registerEmail = document.getElementById('registerEmail');
-const sendCodeRegisterBtn = document.getElementById('sendCodeRegisterBtn');
-const registerStep2 = document.getElementById('registerStep2');
-const registerCodeInput = document.getElementById('registerCodeInput');
-const verifyRegisterBtn = document.getElementById('verifyRegisterBtn');
+// Регистрация
+const registerName = document.getElementById('registerName');
+const registerUsername = document.getElementById('registerUsername');
+const registerPassword = document.getElementById('registerPassword');
+const registerBtn = document.getElementById('registerBtn');
 const registerMessage = document.getElementById('registerMessage');
 const registerMessageText = document.getElementById('registerMessageText');
 
-const newPassword = document.getElementById('newPassword');
-const confirmPassword = document.getElementById('confirmPassword');
-const setPasswordBtn = document.getElementById('setPasswordBtn');
-const setPasswordMessage = document.getElementById('setPasswordMessage');
-const setPasswordMessageText = document.getElementById('setPasswordMessageText');
-const passwordOptions = document.getElementById('passwordOptions');
-
-const profileFirstName = document.getElementById('profileFirstName');
-const profileLastName = document.getElementById('profileLastName');
+// Профиль
+const profileName = document.getElementById('profileName');
+const profileUsername = document.getElementById('profileUsername');
 const profileGender = document.getElementById('profileGender');
 const profileBio = document.getElementById('profileBio');
 const profileAvatar = document.getElementById('profileAvatar');
@@ -83,10 +64,8 @@ const deleteAccountBtn = document.getElementById('deleteAccountBtn');
 const closeProfileBtn = document.getElementById('closeProfileBtn');
 const profileMessage = document.getElementById('profileMessage');
 const profileMessageText = document.getElementById('profileMessageText');
-const showPasswordBtn = document.getElementById('showPasswordBtn');
-const changePasswordBtn = document.getElementById('changePasswordBtn');
-const twoFactorToggle = document.getElementById('twoFactorToggle');
 
+// Чат
 const chatAvatar = document.getElementById('chatAvatar');
 const chatUserName = document.getElementById('chatUserName');
 const chatStatus = document.getElementById('chatStatus');
@@ -105,13 +84,6 @@ const fileInput = document.getElementById('fileInput');
 const backToChatList = document.getElementById('backToChatList');
 const activeChatName = document.getElementById('activeChatName');
 const blockUserBtn = document.getElementById('blockUserBtn');
-
-const passwordModal = document.getElementById('passwordModal');
-const passwordModalClose = document.getElementById('passwordModalClose');
-const passwordModalCode = document.getElementById('passwordModalCode');
-const passwordModalConfirm = document.getElementById('passwordModalConfirm');
-const passwordModalResult = document.getElementById('passwordModalResult');
-
 const callBtn = document.getElementById('callBtn');
 const incomingCallModal = document.getElementById('incomingCallModal');
 const incomingCaller = document.getElementById('incomingCaller');
@@ -122,14 +94,25 @@ const remoteVideo = document.getElementById('remoteVideo');
 const localVideo = document.getElementById('localVideo');
 const hangupBtn = document.getElementById('hangupBtn');
 
+// Заявки
 const requestsBtn = document.getElementById('requestsBtn');
 const requestsModal = document.getElementById('requestsModal');
 const requestsModalClose = document.getElementById('requestsModalClose');
 const requestsList = document.getElementById('requestsList');
 const requestsBadge = document.getElementById('requestsBadge');
 
+// Модалка смены пароля
+const passwordModal = document.getElementById('passwordModal');
+const passwordModalClose = document.getElementById('passwordModalClose');
+const oldPassword = document.getElementById('oldPassword');
+const newPasswordInput = document.getElementById('newPassword');
+const confirmPasswordInput = document.getElementById('confirmPassword');
+const changePasswordConfirmBtn = document.getElementById('changePasswordConfirmBtn');
+const passwordModalMessage = document.getElementById('passwordModalMessage');
+const passwordModalMessageText = document.getElementById('passwordModalMessageText');
+
 // ============================================================
-// 1. АВТОРИЗАЦИЯ (вкладки)
+// 1. ВКЛАДКИ АВТОРИЗАЦИИ
 // ============================================================
 document.querySelectorAll('.auth-tabs button').forEach(btn => {
     btn.addEventListener('click', function() {
@@ -142,66 +125,162 @@ document.querySelectorAll('.auth-tabs button').forEach(btn => {
 });
 
 // ============================================================
-// 2. ВХОД ПО ПАРОЛЮ
+// 2. РЕГИСТРАЦИЯ
 // ============================================================
-loginPasswordBtn.addEventListener('click', () => {
-    const email = loginEmail.value.trim();
-    const pass = loginPassword.value.trim();
-    if (!email || !pass) {
-        showLoginMessage('Введите email и пароль.', false);
+registerBtn.addEventListener('click', () => {
+    const displayName = registerName.value.trim();
+    const username = registerUsername.value.trim().toLowerCase();
+    const password = registerPassword.value.trim();
+
+    if (!displayName || !username || !password) {
+        showRegisterMessage('Заполните все поля.', false);
         return;
     }
-    loginPasswordBtn.disabled = true;
-    loginPasswordBtn.innerHTML = '<div class="spinner"></div>';
+    if (username.length < 3) {
+        showRegisterMessage('Логин должен быть не менее 3 символов.', false);
+        return;
+    }
+    if (password.length < 6) {
+        showRegisterMessage('Пароль должен быть не менее 6 символов.', false);
+        return;
+    }
 
-    auth.signInWithEmailAndPassword(email, pass)
+    registerBtn.disabled = true;
+    registerBtn.innerHTML = '<div class="spinner"></div>';
+
+    // Проверяем уникальность логина
+    db.ref('usernames/' + username).once('value')
+        .then(snapshot => {
+            if (snapshot.exists()) {
+                showRegisterMessage('Этот логин уже занят.', false);
+                throw new Error('username_taken');
+            }
+            // Создаём пользователя в Firebase Auth
+            const email = username + '@zing.local';
+            return auth.createUserWithEmailAndPassword(email, password);
+        })
         .then(userCred => {
             const uid = userCred.user.uid;
-            return db.ref('users/' + uid + '/twoFactorEnabled').once('value')
-                .then(snapshot => {
-                    const twoFactor = snapshot.val() || false;
-                    if (twoFactor) {
-                        return send2FACode(email)
-                            .then(() => {
-                                const code = prompt('Введите код из письма для 2FA:');
-                                if (!code) {
-                                    auth.signOut();
-                                    showLoginMessage('Вход отменён.', false);
-                                    return;
-                                }
-                                return verify2FACode(email, code)
-                                    .then(valid => {
-                                        if (valid) {
-                                            showLoginMessage('✅ Вход выполнен!', true);
-                                        } else {
-                                            auth.signOut();
-                                            showLoginMessage('Неверный код.', false);
-                                        }
-                                    });
-                            });
-                    } else {
-                        showLoginMessage('✅ Вход выполнен!', true);
-                    }
-                });
+            // Сохраняем профиль и логин в базу
+            const updates = {};
+            updates['users/' + uid] = {
+                displayName: displayName,
+                username: username,
+                avatar: '',
+                gender: 'Секрет',
+                bio: '',
+                createdAt: Date.now(),
+                online: true,
+                lastSeen: Date.now(),
+                blocked: []
+            };
+            updates['usernames/' + username] = uid;
+            return db.ref().update(updates);
+        })
+        .then(() => {
+            showRegisterMessage('✅ Регистрация успешна!', true);
+            setTimeout(() => {
+                // Вход уже выполнен, поэтому сразу показываем чат
+                // Но нужно обновить currentUserProfile
+                const user = auth.currentUser;
+                if (user) {
+                    currentUser = user;
+                    loadUserProfile(user.uid);
+                }
+            }, 500);
         })
         .catch(err => {
-            showLoginMessage('Ошибка: ' + err.message, false);
+            if (err.message === 'username_taken') {
+                // уже показано
+            } else {
+                showRegisterMessage('Ошибка: ' + err.message, false);
+            }
         })
         .finally(() => {
-            loginPasswordBtn.disabled = false;
-            loginPasswordBtn.innerHTML = 'Войти';
+            registerBtn.disabled = false;
+            registerBtn.innerHTML = 'Зарегистрироваться';
         });
 });
 
-resetPasswordBtn.addEventListener('click', () => {
-    const email = loginEmail.value.trim();
-    if (!email || !email.includes('@')) {
-        showLoginMessage('Введите email для сброса.', false);
+function showRegisterMessage(text, success) {
+    registerMessage.style.display = 'flex';
+    registerMessage.className = 'message show' + (success ? ' success' : '');
+    registerMessage.querySelector('.icon').textContent = success ? '✅' : '⚠️';
+    registerMessageText.textContent = text;
+    setTimeout(() => registerMessage.style.display = 'none', 5000);
+}
+
+// ============================================================
+// 3. ВХОД
+// ============================================================
+loginBtn.addEventListener('click', () => {
+    const username = loginUsername.value.trim().toLowerCase();
+    const password = loginPassword.value.trim();
+
+    if (!username || !password) {
+        showLoginMessage('Введите логин и пароль.', false);
         return;
     }
+
+    loginBtn.disabled = true;
+    loginBtn.innerHTML = '<div class="spinner"></div>';
+
+    // Ищем uid по логину
+    db.ref('usernames/' + username).once('value')
+        .then(snapshot => {
+            if (!snapshot.exists()) {
+                showLoginMessage('Пользователь с таким логином не найден.', false);
+                throw new Error('user_not_found');
+            }
+            const uid = snapshot.val();
+            // Получаем профиль, чтобы узнать email (который = username + '@zing.local')
+            return db.ref('users/' + uid + '/username').once('value');
+        })
+        .then(snapshot => {
+            const uname = snapshot.val();
+            if (!uname) {
+                showLoginMessage('Ошибка профиля.', false);
+                throw new Error('profile_error');
+            }
+            const email = uname + '@zing.local';
+            return auth.signInWithEmailAndPassword(email, password);
+        })
+        .then(() => {
+            // Вход выполнен, обработка onAuthStateChanged подхватит
+            showLoginMessage('✅ Вход выполнен!', true);
+        })
+        .catch(err => {
+            if (err.message !== 'user_not_found' && err.message !== 'profile_error') {
+                showLoginMessage('Ошибка: ' + err.message, false);
+            }
+        })
+        .finally(() => {
+            loginBtn.disabled = false;
+            loginBtn.innerHTML = 'Войти';
+        });
+});
+
+function showLoginMessage(text, success) {
+    loginMessage.style.display = 'flex';
+    loginMessage.className = 'message show' + (success ? ' success' : '');
+    loginMessage.querySelector('.icon').textContent = success ? '✅' : '⚠️';
+    loginMessageText.textContent = text;
+    setTimeout(() => loginMessage.style.display = 'none', 5000);
+}
+
+// ============================================================
+// 4. СБРОС ПАРОЛЯ (через email)
+// ============================================================
+resetPasswordBtn.addEventListener('click', () => {
+    const username = loginUsername.value.trim().toLowerCase();
+    if (!username) {
+        showLoginMessage('Введите логин для сброса пароля.', false);
+        return;
+    }
+    const email = username + '@zing.local';
     auth.sendPasswordResetEmail(email)
         .then(() => {
-            showLoginMessage('Ссылка для сброса отправлена на почту.', true);
+            showLoginMessage('Ссылка для сброса отправлена на почту (логин@zing.local).', true);
         })
         .catch(err => {
             showLoginMessage('Ошибка: ' + err.message, false);
@@ -209,244 +288,31 @@ resetPasswordBtn.addEventListener('click', () => {
 });
 
 // ============================================================
-// 3. ВХОД ПО КОДУ
+// 5. ПРОФИЛЬ
 // ============================================================
-sendCodeLoginBtn.addEventListener('click', () => {
-    const email = codeLoginEmail.value.trim();
-    if (!email || !email.includes('@')) {
-        showCodeLoginMessage('Введите корректный email.', false);
-        return;
-    }
-    currentEmail = email;
-    const url = `${FIREBASE_DB_URL}/emailQueue.json`;
-    const data = { email, status: 'pending', timestamp: Date.now() };
-    fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-    })
-    .then(res => {
-        if (!res.ok) throw new Error('Ошибка отправки');
-        return res.json();
-    })
-    .then(() => {
-        showCodeLoginMessage('Код отправлен на почту!', true);
-        codeLoginStep2.style.display = 'block';
-    })
-    .catch(err => {
-        showCodeLoginMessage('Ошибка: ' + err.message, false);
-    });
-});
-
-verifyCodeLoginBtn.addEventListener('click', () => {
-    const code = codeLoginInput.value.trim();
-    if (!code || code.length !== 6) {
-        showCodeLoginMessage('Введите 6-значный код.', false);
-        return;
-    }
-    const emailKey = currentEmail.replace(/\./g, '_');
-    const url = `${FIREBASE_DB_URL}/codes/${emailKey}.json`;
-    fetch(url)
-        .then(res => res.json())
-        .then(data => {
-            if (!data || data.code !== code || Date.now() - data.createdAt > 10*60*1000) {
-                showCodeLoginMessage('Неверный или истёкший код.', false);
-                return;
-            }
-            fetch(url, { method: 'DELETE' }).catch(() => {});
-            db.ref('users').orderByChild('email').equalTo(currentEmail).once('value')
-                .then(snapshot => {
-                    const userData = snapshot.val();
-                    if (!userData) {
-                        showCodeLoginMessage('Пользователь не найден. Зарегистрируйтесь.', false);
-                        return;
-                    }
-                    const uid = Object.keys(userData)[0];
-                    const savedPassword = userData[uid].password;
-                    if (!savedPassword) {
-                        showCodeLoginMessage('Пароль не сохранён. Используйте сброс.', false);
-                        return;
-                    }
-                    return auth.signInWithEmailAndPassword(currentEmail, savedPassword);
-                })
-                .then(() => {
-                    showCodeLoginMessage('✅ Вход выполнен!', true);
-                })
-                .catch(err => {
-                    showCodeLoginMessage('Ошибка: ' + err.message, false);
-                });
-        })
-        .catch(err => {
-            showCodeLoginMessage('Ошибка: ' + err.message, false);
-        });
-});
-
-// ============================================================
-// 4. РЕГИСТРАЦИЯ
-// ============================================================
-sendCodeRegisterBtn.addEventListener('click', () => {
-    const email = registerEmail.value.trim();
-    if (!email || !email.includes('@')) {
-        showRegisterMessage('Введите корректный email.', false);
-        return;
-    }
-    currentEmail = email;
-    const url = `${FIREBASE_DB_URL}/emailQueue.json`;
-    const data = { email, status: 'pending', timestamp: Date.now() };
-    fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-    })
-    .then(res => {
-        if (!res.ok) throw new Error('Ошибка отправки');
-        return res.json();
-    })
-    .then(() => {
-        showRegisterMessage('Код отправлен на почту!', true);
-        registerStep2.style.display = 'block';
-    })
-    .catch(err => {
-        showRegisterMessage('Ошибка: ' + err.message, false);
-    });
-});
-
-verifyRegisterBtn.addEventListener('click', () => {
-    const code = registerCodeInput.value.trim();
-    if (!code || code.length !== 6) {
-        showRegisterMessage('Введите 6-значный код.', false);
-        return;
-    }
-    const emailKey = currentEmail.replace(/\./g, '_');
-    const url = `${FIREBASE_DB_URL}/codes/${emailKey}.json`;
-    fetch(url)
-        .then(res => res.json())
-        .then(data => {
-            if (!data || data.code !== code || Date.now() - data.createdAt > 10*60*1000) {
-                showRegisterMessage('Неверный или истёкший код.', false);
-                return;
-            }
-            fetch(url, { method: 'DELETE' }).catch(() => {});
-            auth.fetchSignInMethodsForEmail(currentEmail)
-                .then(methods => {
-                    if (methods.length > 0) {
-                        showRegisterMessage('Этот email уже зарегистрирован. Войдите по паролю.', false);
-                        return;
-                    }
-                    const tempPassword = Math.random().toString(36).slice(-8);
-                    return auth.createUserWithEmailAndPassword(currentEmail, tempPassword)
-                        .then(userCred => {
-                            tempUserForPassword = userCred.user;
-                            showSetPassword(userCred.user);
-                        });
-                })
-                .catch(err => {
-                    showRegisterMessage('Ошибка: ' + err.message, false);
-                });
-        })
-        .catch(err => {
-            showRegisterMessage('Ошибка: ' + err.message, false);
-        });
-});
-
-// ============================================================
-// 5. УСТАНОВКА ПАРОЛЯ
-// ============================================================
-function showSetPassword(user) {
-    authBox.style.display = 'none';
-    profileBox.style.display = 'none';
-    chatBox.style.display = 'none';
-    setPasswordBox.style.display = 'flex';
-    tempUserForPassword = user;
-    generatePasswordOptions();
-}
-
-function generatePasswordOptions() {
-    const options = [];
-    for (let i = 0; i < 3; i++) {
-        options.push(generateStrongPassword());
-    }
-    passwordOptions.innerHTML = '';
-    options.forEach(pwd => {
-        const btn = document.createElement('button');
-        btn.textContent = pwd;
-        btn.dataset.password = pwd;
-        btn.addEventListener('click', function() {
-            document.querySelectorAll('.password-generator .options button').forEach(b => b.classList.remove('selected'));
-            this.classList.add('selected');
-            newPassword.value = this.dataset.password;
-            confirmPassword.value = this.dataset.password;
-        });
-        passwordOptions.appendChild(btn);
-    });
-}
-
-function generateStrongPassword() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+';
-    let pwd = '';
-    for (let i = 0; i < 14; i++) {
-        pwd += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return pwd;
-}
-
-setPasswordBtn.addEventListener('click', () => {
-    const pwd = newPassword.value.trim();
-    const confirm = confirmPassword.value.trim();
-    if (!pwd || pwd.length < 6) {
-        showSetPasswordMessage('Пароль должен быть не менее 6 символов.', false);
-        return;
-    }
-    if (pwd !== confirm) {
-        showSetPasswordMessage('Пароли не совпадают.', false);
-        return;
-    }
-    setPasswordBtn.disabled = true;
-    setPasswordBtn.innerHTML = '<div class="spinner"></div>';
-
-    const user = tempUserForPassword;
-    if (!user) {
-        showSetPasswordMessage('Ошибка: пользователь не найден.', false);
-        setPasswordBtn.disabled = false;
-        setPasswordBtn.innerHTML = 'Сохранить пароль';
-        return;
-    }
-    user.updatePassword(pwd)
-        .then(() => {
-            return db.ref('users/' + user.uid + '/password').set(pwd);
-        })
-        .then(() => {
-            return db.ref('users/' + user.uid).update({
-                firstName: currentEmail.split('@')[0] || 'User',
-                email: currentEmail,
-                createdAt: Date.now()
-            });
-        })
-        .then(() => {
-            showSetPasswordMessage('Пароль установлен! ✅', true);
-            setTimeout(() => {
-                setPasswordBox.style.display = 'none';
+function loadUserProfile(uid) {
+    db.ref('users/' + uid).once('value')
+        .then(snapshot => {
+            const data = snapshot.val();
+            if (data) {
+                currentUserProfile = data;
                 showChat();
-            }, 1000);
+            } else {
+                // Если профиля нет – создаём (но при регистрации мы уже создали)
+                showChat();
+            }
         })
-        .catch(err => {
-            showSetPasswordMessage('Ошибка: ' + err.message, false);
-        })
-        .finally(() => {
-            setPasswordBtn.disabled = false;
-            setPasswordBtn.innerHTML = 'Сохранить пароль';
+        .catch(() => {
+            showChat();
         });
-});
+}
 
-// ============================================================
-// 6. ПРОФИЛЬ
-// ============================================================
 function openProfile() {
     chatBox.style.display = 'none';
     profileBox.style.display = 'flex';
     if (currentUserProfile) {
-        profileFirstName.value = currentUserProfile.firstName || '';
-        profileLastName.value = currentUserProfile.lastName || '';
+        profileName.value = currentUserProfile.displayName || '';
+        profileUsername.value = currentUserProfile.username || '';
         profileGender.value = currentUserProfile.gender || 'Секрет';
         profileBio.value = currentUserProfile.bio || '';
         if (currentUserProfile.avatar) {
@@ -454,9 +320,8 @@ function openProfile() {
             profileAvatar.innerHTML = '';
         } else {
             profileAvatar.style.backgroundImage = '';
-            profileAvatar.innerHTML = currentUserProfile.firstName ? currentUserProfile.firstName.charAt(0).toUpperCase() : '👤';
+            profileAvatar.innerHTML = currentUserProfile.displayName ? currentUserProfile.displayName.charAt(0).toUpperCase() : '👤';
         }
-        twoFactorToggle.checked = currentUserProfile.twoFactorEnabled || false;
     }
 }
 
@@ -466,17 +331,15 @@ function closeProfile() {
 }
 
 saveProfileBtn.addEventListener('click', () => {
-    const name = profileFirstName.value.trim();
-    if (!name) {
+    const displayName = profileName.value.trim();
+    if (!displayName) {
         showProfileMessage('Имя обязательно.', false);
         return;
     }
     const updates = {
-        firstName: name,
-        lastName: profileLastName.value.trim() || '',
+        displayName: displayName,
         gender: profileGender.value || 'Секрет',
         bio: profileBio.value.trim() || '',
-        twoFactorEnabled: twoFactorToggle.checked,
         updatedAt: Date.now()
     };
     saveProfileBtn.disabled = true;
@@ -517,118 +380,86 @@ profileAvatarInput.addEventListener('change', function() {
     });
 });
 
-showPasswordBtn.addEventListener('click', () => {
-    passwordModal.style.display = 'flex';
-    passwordModalResult.textContent = '';
-    passwordModalCode.value = '';
-    const email = currentUser.email;
-    const url = `${FIREBASE_DB_URL}/emailQueue.json`;
-    const data = { email, status: 'pending', timestamp: Date.now() };
-    fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-    })
-    .then(res => {
-        if (!res.ok) throw new Error('Ошибка отправки');
-        return res.json();
-    })
-    .then(() => {
-        alert('Код отправлен на вашу почту.');
-    })
-    .catch(err => alert('Ошибка: ' + err.message));
-});
+function showProfileMessage(text, success) {
+    profileMessage.style.display = 'flex';
+    profileMessage.className = 'message show' + (success ? ' success' : '');
+    profileMessage.querySelector('.icon').textContent = success ? '✅' : '⚠️';
+    profileMessageText.textContent = text;
+    setTimeout(() => profileMessage.style.display = 'none', 5000);
+}
 
-passwordModalConfirm.addEventListener('click', () => {
-    const code = passwordModalCode.value.trim();
-    if (!code || code.length !== 6) {
-        alert('Введите 6-значный код.');
-        return;
-    }
-    const emailKey = currentUser.email.replace(/\./g, '_');
-    const url = `${FIREBASE_DB_URL}/codes/${emailKey}.json`;
-    fetch(url)
-        .then(res => res.json())
-        .then(data => {
-            if (!data || data.code !== code || Date.now() - data.createdAt > 10*60*1000) {
-                alert('Неверный или истёкший код.');
-                return;
-            }
-            fetch(url, { method: 'DELETE' }).catch(() => {});
-            db.ref('users/' + currentUser.uid + '/password').once('value')
-                .then(snapshot => {
-                    const pwd = snapshot.val();
-                    if (pwd) {
-                        passwordModalResult.textContent = pwd;
-                        passwordModalResult.style.color = '#4ade80';
-                        setTimeout(() => { passwordModalResult.textContent = ''; }, 10000);
-                    } else {
-                        passwordModalResult.textContent = 'Пароль не найден.';
-                        passwordModalResult.style.color = '#f5576c';
-                    }
-                });
-        })
-        .catch(err => alert('Ошибка: ' + err.message));
+// ============================================================
+// 6. СМЕНА ПАРОЛЯ
+// ============================================================
+const changePasswordBtn = document.getElementById('changePasswordBtn');
+changePasswordBtn.addEventListener('click', () => {
+    passwordModal.classList.add('show');
+    oldPassword.value = '';
+    newPasswordInput.value = '';
+    confirmPasswordInput.value = '';
+    passwordModalMessage.style.display = 'none';
 });
 
 passwordModalClose.addEventListener('click', () => {
-    passwordModal.style.display = 'none';
+    passwordModal.classList.remove('show');
 });
 
-changePasswordBtn.addEventListener('click', () => {
-    const newPwd = prompt('Введите новый пароль (мин. 6 символов):');
-    if (!newPwd || newPwd.length < 6) {
-        alert('Пароль должен быть не менее 6 символов.');
+changePasswordConfirmBtn.addEventListener('click', () => {
+    const old = oldPassword.value.trim();
+    const newPwd = newPasswordInput.value.trim();
+    const confirm = confirmPasswordInput.value.trim();
+    if (!old || !newPwd || !confirm) {
+        showPasswordModalMessage('Заполните все поля.', false);
         return;
     }
-    const confirmPwd = prompt('Повторите пароль:');
-    if (newPwd !== confirmPwd) {
-        alert('Пароли не совпадают.');
+    if (newPwd.length < 6) {
+        showPasswordModalMessage('Новый пароль должен быть не менее 6 символов.', false);
         return;
     }
-    const email = currentUser.email;
-    const url = `${FIREBASE_DB_URL}/emailQueue.json`;
-    const data = { email, status: 'pending', timestamp: Date.now() };
-    fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-    })
-    .then(res => {
-        if (!res.ok) throw new Error('Ошибка отправки');
-        return res.json();
-    })
-    .then(() => {
-        const code = prompt('Код отправлен на почту. Введите его:');
-        if (!code || code.length !== 6) {
-            alert('Неверный код.');
-            return;
-        }
-        const emailKey = email.replace(/\./g, '_');
-        return fetch(`${FIREBASE_DB_URL}/codes/${emailKey}.json`)
-            .then(res => res.json())
-            .then(data => {
-                if (!data || data.code !== code || Date.now() - data.createdAt > 10*60*1000) {
-                    alert('Неверный или истёкший код.');
-                    return;
-                }
-                fetch(`${FIREBASE_DB_URL}/codes/${emailKey}.json`, { method: 'DELETE' }).catch(() => {});
-                return currentUser.updatePassword(newPwd)
-                    .then(() => {
-                        return db.ref('users/' + currentUser.uid + '/password').set(newPwd);
-                    })
-                    .then(() => {
-                        alert('Пароль успешно изменён!');
-                    });
-            });
-    })
-    .catch(err => alert('Ошибка: ' + err.message));
+    if (newPwd !== confirm) {
+        showPasswordModalMessage('Пароли не совпадают.', false);
+        return;
+    }
+    changePasswordConfirmBtn.disabled = true;
+    changePasswordConfirmBtn.innerHTML = '<div class="spinner"></div>';
+
+    const user = auth.currentUser;
+    // Для смены пароля нужно переаутентифицироваться
+    const credential = firebase.auth.EmailAuthProvider.credential(user.email, old);
+    user.reauthenticateWithCredential(credential)
+        .then(() => user.updatePassword(newPwd))
+        .then(() => {
+            showPasswordModalMessage('Пароль успешно изменён!', true);
+            setTimeout(() => passwordModal.classList.remove('show'), 1500);
+        })
+        .catch(err => {
+            showPasswordModalMessage('Ошибка: ' + err.message, false);
+        })
+        .finally(() => {
+            changePasswordConfirmBtn.disabled = false;
+            changePasswordConfirmBtn.innerHTML = 'Изменить пароль';
+        });
 });
 
+function showPasswordModalMessage(text, success) {
+    passwordModalMessage.style.display = 'flex';
+    passwordModalMessage.className = 'message show' + (success ? ' success' : '');
+    passwordModalMessage.querySelector('.icon').textContent = success ? '✅' : '⚠️';
+    passwordModalMessageText.textContent = text;
+    setTimeout(() => passwordModalMessage.style.display = 'none', 5000);
+}
+
+// ============================================================
+// 7. УДАЛЕНИЕ АККАУНТА
+// ============================================================
 deleteAccountBtn.addEventListener('click', () => {
     if (!confirm('Вы уверены, что хотите удалить аккаунт? Все данные будут потеряны.')) return;
     const uid = currentUser.uid;
-    db.ref('users/' + uid).remove()
+    const username = currentUserProfile.username;
+    const updates = {};
+    updates['users/' + uid] = null;
+    updates['usernames/' + username] = null;
+    db.ref().update(updates)
         .then(() => currentUser.delete())
         .then(() => {
             showProfileMessage('Аккаунт удалён.', true);
@@ -642,13 +473,12 @@ deleteAccountBtn.addEventListener('click', () => {
 closeProfileBtn.addEventListener('click', closeProfile);
 
 // ============================================================
-// 7. ЧАТ (с поддержкой статуса и печатания, исправлены слушатели)
+// 8. ЧАТ
 // ============================================================
 function showChat() {
     authBox.style.display = 'none';
     profileBox.style.display = 'none';
     chatBox.style.display = 'flex';
-    setPasswordBox.style.display = 'none';
     updateChatHeader();
     loadChatList();
     updateRequestsBadge();
@@ -658,9 +488,9 @@ function showChat() {
 
 function updateChatHeader() {
     if (currentUserProfile) {
-        const name = (currentUserProfile.firstName || '') + (currentUserProfile.lastName ? ' ' + currentUserProfile.lastName : '');
-        chatUserName.innerHTML = (name || 'Пользователь') + `<small id="chatStatus" class="chat-status">онлайн</small>`;
-        const avatar = currentUserProfile.avatar || (currentUserProfile.firstName ? currentUserProfile.firstName.charAt(0).toUpperCase() : 'Z');
+        const name = currentUserProfile.displayName || 'Пользователь';
+        chatUserName.innerHTML = name + `<small id="chatStatus" class="chat-status">онлайн</small>`;
+        const avatar = currentUserProfile.avatar || name.charAt(0).toUpperCase();
         if (avatar && avatar.startsWith('http')) {
             chatAvatar.style.backgroundImage = `url(${avatar})`;
             chatAvatar.style.backgroundSize = 'cover';
@@ -672,7 +502,6 @@ function updateChatHeader() {
     }
 }
 
-// ===== Статус пользователя =====
 function setUserStatus(uid, online) {
     const updates = {
         online: online,
@@ -682,13 +511,9 @@ function setUserStatus(uid, online) {
         .catch(err => console.error('Ошибка обновления статуса:', err));
 }
 
-// Слушаем статус собеседника (исправлено)
 function listenPartnerStatus(partnerUid) {
     if (statusListener) {
-        // Если statusListener – функция отмены, вызываем её
-        if (typeof statusListener === 'function') {
-            statusListener();
-        }
+        statusListener.off();
         statusListener = null;
     }
     const statusRef = db.ref('users/' + partnerUid + '/status');
@@ -726,12 +551,9 @@ function updatePartnerStatusUI(data) {
     }
 }
 
-// ===== Индикатор «печатает» (исправлено) =====
 function listenTyping(chatId) {
     if (typingListener) {
-        if (typeof typingListener === 'function') {
-            typingListener();
-        }
+        typingListener.off();
         typingListener = null;
     }
     const typingRef = db.ref('chats/' + chatId + '/typing');
@@ -743,7 +565,6 @@ function listenTyping(chatId) {
             statusEl.textContent = 'печатает...';
             statusEl.className = 'chat-status typing';
         } else {
-            // Восстанавливаем статус (онлайн/офлайн)
             if (currentChatPartnerUid) {
                 listenPartnerStatus(currentChatPartnerUid);
             }
@@ -761,16 +582,12 @@ function setTyping(chatId, isTyping) {
     }
 }
 
-// ===== Загрузка списка чатов =====
 function loadChatList() {
-    if (chatListListener) {
-        if (typeof chatListListener === 'function') {
-            chatListListener();
-        }
-        chatListListener = null;
-    }
     const chatsRef = db.ref('chats');
-    chatListListener = chatsRef.on('value', (snapshot) => {
+    chatsRef.off();
+    chatList.innerHTML = '<div style="color:rgba(255,255,255,0.3); padding:20px; text-align:center;">Загрузка...</div>';
+
+    chatsRef.on('value', (snapshot) => {
         const data = snapshot.val();
         chatList.innerHTML = '';
         if (!data) {
@@ -797,11 +614,11 @@ function loadChatList() {
                 if (!partner) return;
                 const div = document.createElement('div');
                 div.className = 'chat-item';
-                const avatarLetter = (partner.avatar && partner.avatar.startsWith('http')) ? '' : (partner.firstName ? partner.firstName.charAt(0).toUpperCase() : '?');
+                const avatarLetter = (partner.avatar && partner.avatar.startsWith('http')) ? '' : (partner.displayName ? partner.displayName.charAt(0).toUpperCase() : '?');
                 div.innerHTML = `
                     <div class="chat-avatar" style="${partner.avatar && partner.avatar.startsWith('http') ? `background-image:url(${partner.avatar}); background-size:cover;` : ''}">${avatarLetter}</div>
                     <div class="chat-info">
-                        <div class="chat-name">${partner.firstName} ${partner.lastName || ''}</div>
+                        <div class="chat-name">${partner.displayName || 'Пользователь'}</div>
                         <div class="chat-last">${chat.lastMessage || 'Напишите первым'}</div>
                     </div>
                     <div class="chat-time">${chat.lastTimestamp ? new Date(chat.lastTimestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : ''}</div>
@@ -815,7 +632,6 @@ function loadChatList() {
     });
 }
 
-// ===== Открытие чата =====
 function openChat(chatId, partnerUid, partnerData) {
     currentChatId = chatId;
     currentChatPartnerUid = partnerUid;
@@ -823,15 +639,15 @@ function openChat(chatId, partnerUid, partnerData) {
     chatList.style.display = 'none';
     document.getElementById('searchBox').style.display = 'none';
     document.getElementById('searchResults').style.display = 'none';
-    activeChatName.textContent = partnerData.firstName + ' ' + (partnerData.lastName || '');
+    activeChatName.textContent = partnerData.displayName || 'Пользователь';
     blockUserBtn.style.display = 'inline-block';
     blockUserBtn.onclick = () => {
-        if (confirm('Заблокировать пользователя ' + partnerData.firstName + '?')) {
+        if (confirm('Заблокировать пользователя ' + (partnerData.displayName || '') + '?')) {
             blockUser(partnerUid);
         }
     };
     callBtn.style.display = 'inline-block';
-    callBtn.onclick = () => startCall(partnerUid, partnerData.firstName);
+    callBtn.onclick = () => startCall(partnerUid, partnerData.displayName);
 
     listenPartnerStatus(partnerUid);
     listenTyping(chatId);
@@ -849,7 +665,6 @@ function openChat(chatId, partnerUid, partnerData) {
     });
 }
 
-// ===== Загрузка сообщений =====
 function loadMessages(chatId) {
     if (messagesListener) {
         messagesListener.off();
@@ -870,7 +685,7 @@ function loadMessages(chatId) {
         db.ref('users/' + data.from).once('value').then(snap => {
             const sender = snap.val();
             if (sender) {
-                const letter = (sender.avatar && sender.avatar.startsWith('http')) ? '' : (sender.firstName ? sender.firstName.charAt(0).toUpperCase() : '?');
+                const letter = (sender.avatar && sender.avatar.startsWith('http')) ? '' : (sender.displayName ? sender.displayName.charAt(0).toUpperCase() : '?');
                 if (sender.avatar && sender.avatar.startsWith('http')) {
                     avatarDiv.style.backgroundImage = `url(${sender.avatar})`;
                     avatarDiv.style.backgroundSize = 'cover';
@@ -932,7 +747,6 @@ function loadMessages(chatId) {
     messagesListener = messagesRef;
 }
 
-// ===== Отправка сообщения =====
 function sendMessage() {
     const text = messageInput.value.trim();
     if (!text || !currentChatId) return;
@@ -942,7 +756,7 @@ function sendMessage() {
         text: text,
         type: 'text',
         timestamp: Date.now(),
-        senderName: (currentUserProfile.firstName || '') + (currentUserProfile.lastName ? ' ' + currentUserProfile.lastName : ''),
+        senderName: currentUserProfile.displayName || 'Пользователь',
         deletedBy: []
     });
     db.ref('chats/' + currentChatId).update({
@@ -971,7 +785,7 @@ fileInput.addEventListener('change', () => {
                 text: url,
                 type: 'image',
                 timestamp: Date.now(),
-                senderName: (currentUserProfile.firstName || '') + (currentUserProfile.lastName ? ' ' + currentUserProfile.lastName : ''),
+                senderName: currentUserProfile.displayName || 'Пользователь',
                 deletedBy: []
             });
             db.ref('chats/' + currentChatId).update({
@@ -992,7 +806,6 @@ function deleteMessage(chatId, messageId, forEveryone = false) {
     }
 }
 
-// ===== Возврат в список чатов (с принудительным обновлением) =====
 backToChatList.addEventListener('click', () => {
     if (messagesListener) {
         messagesListener.off();
@@ -1004,26 +817,18 @@ backToChatList.addEventListener('click', () => {
     currentChatId = null;
     currentChatPartnerUid = null;
     callBtn.style.display = 'none';
-    // Снимаем слушатели статуса и печатания
-    if (statusListener) {
-        if (typeof statusListener === 'function') statusListener();
-        statusListener = null;
-    }
-    if (typingListener) {
-        if (typeof typingListener === 'function') typingListener();
-        typingListener = null;
-    }
-    // Принудительно обновляем список чатов (он и так обновляется через слушатель, но на всякий случай)
+    if (typingListener) typingListener.off();
+    if (statusListener) statusListener.off();
     loadChatList();
 });
 
 // ============================================================
-// 8. ПОИСК И ЗАЯВКИ
+// 9. ПОИСК
 // ============================================================
 searchBtn.addEventListener('click', () => {
     const query = searchInput.value.trim().toLowerCase();
     if (!query) return;
-    db.ref('users').orderByChild('email').startAt(query).endAt(query + '\uf8ff')
+    db.ref('users').orderByChild('username').startAt(query).endAt(query + '\uf8ff')
         .once('value')
         .then(snapshot => {
             const results = snapshot.val();
@@ -1039,7 +844,7 @@ searchBtn.addEventListener('click', () => {
                 const div = document.createElement('div');
                 div.className = 'result-item';
                 div.innerHTML = `
-                    <span>${user.firstName} ${user.lastName || ''} (${user.email})</span>
+                    <span>${user.displayName || 'Пользователь'} (@${user.username})</span>
                     ${isBlocked ? '<span style="color:rgba(255,255,255,0.3);">Заблокирован</span>' :
                     `<button class="btn-secondary" style="padding:4px 16px; border-radius:30px; border:1px solid rgba(255,255,255,0.2); background:transparent; color:#fff; cursor:pointer;" data-uid="${uid}">Добавить</button>`}
                 `;
@@ -1086,7 +891,7 @@ function sendFriendRequest(toUid) {
 }
 
 // ============================================================
-// 9. ЗАПРОСЫ (реальное время)
+// 10. ЗАПРОСЫ
 // ============================================================
 function updateRequestsBadge() {
     if (!currentUser) return;
@@ -1108,10 +913,9 @@ function updateRequestsBadge() {
         .catch(err => console.error('Ошибка обновления бейджа:', err));
 }
 
-// Слушатель для новых входящих заявок
 function listenForFriendRequests() {
     if (friendRequestsListener) {
-        if (typeof friendRequestsListener === 'function') friendRequestsListener();
+        friendRequestsListener.off();
         friendRequestsListener = null;
     }
     if (!currentUser) return;
@@ -1140,11 +944,8 @@ async function loadRequests() {
     list.innerHTML = '<div style="color:rgba(255,255,255,0.4); text-align:center; padding:20px;">Загрузка...</div>';
 
     try {
-        console.log('🔍 Загружаем заявки для пользователя:', currentUser.uid);
         const incomingSnap = await db.ref('friendRequests').orderByChild('to').equalTo(currentUser.uid).once('value');
-        console.log('📦 Входящие данные:', incomingSnap.val());
         const outgoingSnap = await db.ref('friendRequests').orderByChild('from').equalTo(currentUser.uid).once('value');
-        console.log('📦 Исходящие данные:', outgoingSnap.val());
 
         const incomingData = incomingSnap.val() || {};
         const outgoingData = outgoingSnap.val() || {};
@@ -1171,8 +972,8 @@ async function loadRequests() {
                     html += `
                         <div class="request-item" data-key="${key}">
                             <div class="info">
-                                <div class="name">${user.firstName || 'Пользователь'} ${user.lastName || ''}</div>
-                                <div class="email">${user.email || ''}</div>
+                                <div class="name">${user.displayName || 'Пользователь'}</div>
+                                <div class="username">@${user.username || ''}</div>
                             </div>
                             <div class="actions">
                                 <button class="accept" data-key="${key}" data-uid="${req.from}">Принять</button>
@@ -1196,8 +997,8 @@ async function loadRequests() {
                     html += `
                         <div class="request-item" data-key="${key}">
                             <div class="info">
-                                <div class="name">${user.firstName || 'Пользователь'} ${user.lastName || ''}</div>
-                                <div class="email">${user.email || ''}</div>
+                                <div class="name">${user.displayName || 'Пользователь'}</div>
+                                <div class="username">@${user.username || ''}</div>
                             </div>
                             <div class="actions">
                                 <button class="cancel" data-key="${key}">Отменить</button>
@@ -1241,8 +1042,6 @@ async function loadRequests() {
             });
         });
 
-        console.log('✅ Загрузка заявок завершена');
-
     } catch (err) {
         console.error('❌ Ошибка загрузки заявок:', err);
         list.innerHTML = `<div style="color:red; padding:10px;">Ошибка загрузки: ${err.message}</div>`;
@@ -1250,7 +1049,6 @@ async function loadRequests() {
 }
 
 function acceptRequest(key, friendUid) {
-    console.log('✅ Принимаем заявку:', key, 'от пользователя:', friendUid);
     const chatId = [currentUser.uid, friendUid].sort().join('_');
     const chatRef = db.ref('chats/' + chatId);
     chatRef.set({
@@ -1258,30 +1056,21 @@ function acceptRequest(key, friendUid) {
         lastMessage: 'Начните общение!',
         lastTimestamp: Date.now()
     })
+    .then(() => db.ref('friendRequests/' + key).remove())
     .then(() => {
-        console.log('✅ Чат создан, удаляем заявку');
-        return db.ref('friendRequests/' + key).remove();
-    })
-    .then(() => {
-        console.log('✅ Заявка удалена');
         showProfileMessage('✅ Заявка принята! Чат создан.', true);
         updateRequestsBadge();
         requestsModal.classList.remove('show');
-        // Обновляем список чатов
         loadChatList();
         return db.ref('users/' + friendUid).once('value');
     })
     .then(snapshot => {
         const partner = snapshot.val();
         if (partner) {
-            console.log('✅ Открываем чат с:', partner.firstName);
             openChat(chatId, friendUid, partner);
-        } else {
-            console.warn('⚠️ Партнёр не найден');
         }
     })
     .catch(err => {
-        console.error('❌ Ошибка принятия заявки:', err);
         showProfileMessage('Ошибка: ' + err.message, false);
     });
 }
@@ -1326,7 +1115,7 @@ requestsModal.addEventListener('click', (e) => {
 });
 
 // ============================================================
-// 10. БЛОКИРОВКА
+// 11. БЛОКИРОВКА
 // ============================================================
 function blockUser(uid) {
     const blockedList = currentUserProfile.blocked || [];
@@ -1347,74 +1136,7 @@ function blockUser(uid) {
 }
 
 // ============================================================
-// 11. ВСПОМОГАТЕЛЬНЫЕ
-// ============================================================
-function showLoginMessage(text, success) {
-    loginMessage.style.display = 'flex';
-    loginMessage.className = 'message show' + (success ? ' success' : '');
-    loginMessage.querySelector('.icon').textContent = success ? '✅' : '⚠️';
-    loginMessageText.textContent = text;
-    setTimeout(() => loginMessage.style.display = 'none', 5000);
-}
-
-function showCodeLoginMessage(text, success) {
-    codeLoginMessage.style.display = 'flex';
-    codeLoginMessage.className = 'message show' + (success ? ' success' : '');
-    codeLoginMessage.querySelector('.icon').textContent = success ? '✅' : '⚠️';
-    codeLoginMessageText.textContent = text;
-    setTimeout(() => codeLoginMessage.style.display = 'none', 5000);
-}
-
-function showRegisterMessage(text, success) {
-    registerMessage.style.display = 'flex';
-    registerMessage.className = 'message show' + (success ? ' success' : '');
-    registerMessage.querySelector('.icon').textContent = success ? '✅' : '⚠️';
-    registerMessageText.textContent = text;
-    setTimeout(() => registerMessage.style.display = 'none', 5000);
-}
-
-function showSetPasswordMessage(text, success) {
-    setPasswordMessage.style.display = 'flex';
-    setPasswordMessage.className = 'message show' + (success ? ' success' : '');
-    setPasswordMessage.querySelector('.icon').textContent = success ? '✅' : '⚠️';
-    setPasswordMessageText.textContent = text;
-    setTimeout(() => setPasswordMessage.style.display = 'none', 5000);
-}
-
-function showProfileMessage(text, success) {
-    profileMessage.style.display = 'flex';
-    profileMessage.className = 'message show' + (success ? ' success' : '');
-    profileMessage.querySelector('.icon').textContent = success ? '✅' : '⚠️';
-    profileMessageText.textContent = text;
-    setTimeout(() => profileMessage.style.display = 'none', 5000);
-}
-
-function send2FACode(email) {
-    const url = `${FIREBASE_DB_URL}/emailQueue.json`;
-    const data = { email, status: 'pending', timestamp: Date.now() };
-    return fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-    }).then(res => res.json());
-}
-
-function verify2FACode(email, code) {
-    const emailKey = email.replace(/\./g, '_');
-    const url = `${FIREBASE_DB_URL}/codes/${emailKey}.json`;
-    return fetch(url)
-        .then(res => res.json())
-        .then(data => {
-            if (!data || data.code !== code || Date.now() - data.createdAt > 10*60*1000) {
-                return false;
-            }
-            fetch(url, { method: 'DELETE' }).catch(() => {});
-            return true;
-        });
-}
-
-// ============================================================
-// 12. ЗВОНКИ (WebRTC)
+// 12. ЗВОНКИ (WebRTC) – базовая реализация
 // ============================================================
 let peerConnection = null;
 let localStream = null;
@@ -1434,7 +1156,7 @@ async function startCall(partnerUid, partnerName) {
         to: partnerUid,
         status: 'calling',
         timestamp: Date.now(),
-        fromName: currentUserProfile.firstName || 'Пользователь',
+        fromName: currentUserProfile.displayName || 'Пользователь',
         toName: partnerName || 'Собеседник'
     };
     await callRef.set(callData);
@@ -1571,23 +1293,7 @@ auth.onAuthStateChanged((user) => {
     if (user) {
         currentUser = user;
         setUserStatus(user.uid, true);
-        db.ref('users/' + user.uid).once('value')
-            .then(snapshot => {
-                const data = snapshot.val();
-                if (data) {
-                    currentUserProfile = data;
-                    if (!data.password) {
-                        showSetPassword(user);
-                    } else {
-                        showChat();
-                    }
-                } else {
-                    showSetPassword(user);
-                }
-            })
-            .catch(() => {
-                showSetPassword(user);
-            });
+        loadUserProfile(user.uid);
     } else {
         if (currentUser) {
             setUserStatus(currentUser.uid, false);
@@ -1595,13 +1301,10 @@ auth.onAuthStateChanged((user) => {
         authBox.style.display = 'flex';
         profileBox.style.display = 'none';
         chatBox.style.display = 'none';
-        setPasswordBox.style.display = 'none';
         if (messagesListener) messagesListener.off();
-        // Отписываемся от всех слушателей
-        if (statusListener) { if (typeof statusListener === 'function') statusListener(); statusListener = null; }
-        if (typingListener) { if (typeof typingListener === 'function') typingListener(); typingListener = null; }
-        if (friendRequestsListener) { if (typeof friendRequestsListener === 'function') friendRequestsListener(); friendRequestsListener = null; }
-        if (chatListListener) { if (typeof chatListListener === 'function') chatListListener(); chatListListener = null; }
+        if (statusListener) statusListener.off();
+        if (typingListener) typingListener.off();
+        if (friendRequestsListener) friendRequestsListener.off();
         currentUser = null;
         currentUserProfile = null;
         if (peerConnection) {
