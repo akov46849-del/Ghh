@@ -142,20 +142,17 @@ registerBtn.addEventListener('click', () => {
     registerBtn.disabled = true;
     registerBtn.innerHTML = '<div class="spinner"></div>';
 
-    // Проверяем уникальность логина
     db.ref('usernames/' + username).once('value')
         .then(snapshot => {
             if (snapshot.exists()) {
                 showRegisterMessage('Этот логин уже занят.', false);
                 throw new Error('username_taken');
             }
-            // Создаём пользователя в Firebase Auth
             const email = username + '@zing.local';
             return auth.createUserWithEmailAndPassword(email, password);
         })
         .then(userCred => {
             const uid = userCred.user.uid;
-            // Сохраняем профиль и логин в базу
             const updates = {};
             updates['users/' + uid] = {
                 displayName: displayName,
@@ -203,7 +200,7 @@ function showRegisterMessage(text, success) {
 }
 
 // ============================================================
-// 3. ВХОД
+// 3. ВХОД (исправлен – без лишнего чтения username)
 // ============================================================
 loginBtn.addEventListener('click', () => {
     const username = loginUsername.value.trim().toLowerCase();
@@ -223,23 +220,15 @@ loginBtn.addEventListener('click', () => {
                 showLoginMessage('Пользователь с таким логином не найден.', false);
                 throw new Error('user_not_found');
             }
-            const uid = snapshot.val();
-            return db.ref('users/' + uid + '/username').once('value');
-        })
-        .then(snapshot => {
-            const uname = snapshot.val();
-            if (!uname) {
-                showLoginMessage('Ошибка профиля.', false);
-                throw new Error('profile_error');
-            }
-            const email = uname + '@zing.local';
+            // uid нам не нужен, мы используем введённый username для email
+            const email = username + '@zing.local';
             return auth.signInWithEmailAndPassword(email, password);
         })
         .then(() => {
             showLoginMessage('✅ Вход выполнен!', true);
         })
         .catch(err => {
-            if (err.message !== 'user_not_found' && err.message !== 'profile_error') {
+            if (err.message !== 'user_not_found') {
                 showLoginMessage('Ошибка: ' + err.message, false);
             }
         })
