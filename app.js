@@ -63,8 +63,8 @@ const profileMessage = document.getElementById('profileMessage');
 const profileMessageText = document.getElementById('profileMessageText');
 
 const chatAvatar = document.getElementById('chatAvatar');
-const chatUserName = document.getElementById('chatUserName');
-const chatStatus = document.getElementById('chatStatus');
+const chatDisplayName = document.getElementById('chatDisplayName');
+const chatUserName = document.getElementById('chatUserName'); // контейнер для имени и статуса
 const logoutBtn = document.getElementById('logoutBtn');
 const settingsBtn = document.getElementById('settingsBtn');
 const searchInput = document.getElementById('searchInput');
@@ -79,6 +79,7 @@ const fileBtn = document.getElementById('fileBtn');
 const fileInput = document.getElementById('fileInput');
 const backToChatList = document.getElementById('backToChatList');
 const activeChatName = document.getElementById('activeChatName');
+const activeChatStatus = document.getElementById('activeChatStatus');
 const blockUserBtn = document.getElementById('blockUserBtn');
 const callBtn = document.getElementById('callBtn');
 const incomingCallModal = document.getElementById('incomingCallModal');
@@ -200,7 +201,7 @@ function showRegisterMessage(text, success) {
 }
 
 // ============================================================
-// 3. ВХОД (исправлен – без лишнего чтения username)
+// 3. ВХОД
 // ============================================================
 loginBtn.addEventListener('click', () => {
     const username = loginUsername.value.trim().toLowerCase();
@@ -220,7 +221,6 @@ loginBtn.addEventListener('click', () => {
                 showLoginMessage('Пользователь с таким логином не найден.', false);
                 throw new Error('user_not_found');
             }
-            // uid нам не нужен, мы используем введённый username для email
             const email = username + '@zing.local';
             return auth.signInWithEmailAndPassword(email, password);
         })
@@ -455,7 +455,7 @@ function showChat() {
     authBox.style.display = 'none';
     profileBox.style.display = 'none';
     chatBox.style.display = 'flex';
-    updateChatHeader();
+    updateChatHeader(); // показываем только своё имя без статуса
     loadChatList();
     updateRequestsBadge();
     listenForFriendRequests();
@@ -465,7 +465,7 @@ function showChat() {
 function updateChatHeader() {
     if (currentUserProfile) {
         const name = currentUserProfile.displayName || 'Пользователь';
-        chatUserName.innerHTML = name + `<small id="chatStatus" class="chat-status">онлайн</small>`;
+        chatDisplayName.textContent = name;
         const avatar = currentUserProfile.avatar || name.charAt(0).toUpperCase();
         if (avatar && avatar.startsWith('http')) {
             chatAvatar.style.backgroundImage = `url(${avatar})`;
@@ -475,6 +475,9 @@ function updateChatHeader() {
             chatAvatar.style.backgroundImage = '';
             chatAvatar.textContent = avatar;
         }
+        // Скрываем статус (он будет только в активном чате)
+        const statusEl = chatUserName.querySelector('.chat-status');
+        if (statusEl) statusEl.style.display = 'none';
     }
 }
 
@@ -496,16 +499,15 @@ function listenPartnerStatus(partnerUid) {
     statusListener = statusRef.on('value', (snapshot) => {
         const data = snapshot.val();
         if (!data) return;
-        updatePartnerStatusUI(data);
+        updateActiveChatStatus(data);
     });
 }
 
-function updatePartnerStatusUI(data) {
-    const statusEl = document.getElementById('chatStatus');
-    if (!statusEl) return;
+function updateActiveChatStatus(data) {
+    if (!activeChatStatus) return;
     if (data.online) {
-        statusEl.textContent = 'онлайн';
-        statusEl.className = 'chat-status online';
+        activeChatStatus.textContent = 'онлайн';
+        activeChatStatus.className = 'chat-status online';
     } else {
         const lastSeen = data.lastSeen;
         if (lastSeen) {
@@ -518,11 +520,11 @@ function updatePartnerStatusUI(data) {
             else if (diffMin < 60) text += diffMin + ' мин назад';
             else if (diffMin < 1440) text += Math.floor(diffMin / 60) + ' ч назад';
             else text += 'вчера в ' + date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-            statusEl.textContent = text;
-            statusEl.className = 'chat-status';
+            activeChatStatus.textContent = text;
+            activeChatStatus.className = 'chat-status';
         } else {
-            statusEl.textContent = 'не в сети';
-            statusEl.className = 'chat-status';
+            activeChatStatus.textContent = 'не в сети';
+            activeChatStatus.className = 'chat-status';
         }
     }
 }
@@ -535,12 +537,12 @@ function listenTyping(chatId) {
     const typingRef = db.ref('chats/' + chatId + '/typing');
     typingListener = typingRef.on('value', (snapshot) => {
         const typingData = snapshot.val();
-        const statusEl = document.getElementById('chatStatus');
-        if (!statusEl) return;
+        if (!activeChatStatus) return;
         if (typingData && typingData.uid !== currentUser.uid && typingData.isTyping) {
-            statusEl.textContent = 'печатает...';
-            statusEl.className = 'chat-status typing';
+            activeChatStatus.textContent = 'печатает...';
+            activeChatStatus.className = 'chat-status typing';
         } else {
+            // Восстанавливаем статус (онлайн/офлайн)
             if (currentChatPartnerUid) {
                 listenPartnerStatus(currentChatPartnerUid);
             }
@@ -616,6 +618,8 @@ function openChat(chatId, partnerUid, partnerData) {
     document.getElementById('searchBox').style.display = 'none';
     document.getElementById('searchResults').style.display = 'none';
     activeChatName.textContent = partnerData.displayName || 'Пользователь';
+    activeChatStatus.textContent = 'загрузка...';
+    activeChatStatus.className = 'chat-status';
     blockUserBtn.style.display = 'inline-block';
     blockUserBtn.onclick = () => {
         if (confirm('Заблокировать пользователя ' + (partnerData.displayName || '') + '?')) {
@@ -625,7 +629,9 @@ function openChat(chatId, partnerUid, partnerData) {
     callBtn.style.display = 'inline-block';
     callBtn.onclick = () => startCall(partnerUid, partnerData.displayName);
 
+    // Слушаем статус собеседника
     listenPartnerStatus(partnerUid);
+    // Слушаем печатание
     listenTyping(chatId);
 
     loadMessages(chatId);
@@ -795,6 +801,8 @@ backToChatList.addEventListener('click', () => {
     callBtn.style.display = 'none';
     if (typingListener) typingListener.off();
     if (statusListener) statusListener.off();
+    // Сбрасываем статус в активном чате
+    activeChatStatus.textContent = '';
     loadChatList();
 });
 
