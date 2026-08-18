@@ -26,6 +26,7 @@
         .container {
             background: rgba(255,255,255,0.06);
             backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
             border-radius: 24px;
             padding: 16px 20px;
             max-width: 800px;
@@ -37,6 +38,7 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            transition: all 0.3s ease;
         }
         .logo { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
         .logo i { font-size: 28px; background: linear-gradient(135deg, #f093fb, #f5576c); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
@@ -59,6 +61,7 @@
             width: 60px; height: 60px; border-radius: 50%; background: rgba(255,255,255,0.05); border: 2px dashed rgba(255,255,255,0.2);
             display: flex; align-items: center; justify-content: center; font-size: 28px; color: rgba(255,255,255,0.3);
             margin-top: 6px; overflow: hidden; position: relative; cursor: pointer;
+            transition: 0.3s;
         }
         .input-group .avatar-preview img { width: 100%; height: 100%; object-fit: cover; }
         .input-group .avatar-preview .upload-overlay { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.5); color: #fff; font-size: 9px; text-align: center; padding: 2px; border-radius: 0 0 50% 50%; opacity: 0; transition: 0.3s; }
@@ -68,9 +71,11 @@
         .btn {
             width: 100%; padding: 12px; border: none; border-radius: 60px;
             background: linear-gradient(135deg, #f093fb, #f5576c); color: #fff;
-            font-size: 16px; font-weight: 600; cursor: pointer; transition: 0.3s;
+            font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease;
             display: flex; align-items: center; justify-content: center; gap: 8px;
             font-family: 'Inter', sans-serif;
+            position: relative;
+            overflow: hidden;
         }
         .btn:hover { transform: scale(1.02); box-shadow: 0 8px 30px rgba(245,87,108,0.4); }
         .btn:active { transform: scale(0.97); }
@@ -84,19 +89,46 @@
         .spinner { width: 20px; height: 20px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.2); border-top-color: #fff; animation: spin 0.7s linear infinite; display: inline-block; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        .message { margin-top: 10px; padding: 10px 14px; border-radius: 14px; background: rgba(255,255,255,0.05); border-left: 4px solid #f5576c; color: rgba(255,255,255,0.9); font-size: 13px; display: none; align-items: center; gap: 10px; animation: fadeIn 0.3s ease; }
+        .message {
+            margin-top: 10px; padding: 10px 14px; border-radius: 14px;
+            background: rgba(255,255,255,0.05); border-left: 4px solid #f5576c;
+            color: rgba(255,255,255,0.9); font-size: 13px;
+            display: none; align-items: center; gap: 10px;
+            animation: fadeSlide 0.3s ease;
+        }
         .message.show { display: flex; }
         .message.success { border-left-color: #4ade80; }
         .message .icon { font-size: 16px; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeSlide {
+            from { opacity: 0; transform: translateY(-6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
 
         .footer { margin-top: 12px; text-align: center; color: rgba(255,255,255,0.12); font-size: 11px; }
 
         .auth-tabs { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
-        .auth-tabs button { flex: 1; min-width: 70px; padding: 8px 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.6); border-radius: 60px; cursor: pointer; transition: 0.3s; font-size: 12px; font-weight: 500; }
-        .auth-tabs button.active { background: linear-gradient(135deg, #f093fb, #f5576c); color: #fff; border-color: transparent; }
-        .auth-tabs button:hover { background: rgba(255,255,255,0.08); color: #fff; }
-        .auth-panel { display: none; }
+        .auth-tabs button {
+            flex: 1; min-width: 70px; padding: 8px 6px;
+            border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.04);
+            color: rgba(255,255,255,0.6);
+            border-radius: 60px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .auth-tabs button.active {
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            color: #fff;
+            border-color: transparent;
+            box-shadow: 0 4px 15px rgba(245,87,108,0.3);
+        }
+        .auth-tabs button:hover {
+            background: rgba(255,255,255,0.12);
+            color: #fff;
+        }
+        .auth-panel { display: none; animation: fadeSlide 0.3s ease; }
         .auth-panel.active { display: block; }
 
         #authBox, #profileBox, #chatBox { display: none; flex-direction: column; height: 100%; }
@@ -133,6 +165,7 @@
             flex-shrink: 0;
             background-size: cover;
             background-position: center;
+            transition: 0.3s;
         }
         .chat-header .user-info .name {
             color: #fff;
@@ -147,6 +180,7 @@
             color: rgba(255,255,255,0.6);
             display: block;
             margin-top: 1px;
+            transition: all 0.3s ease;
         }
         .chat-header .user-info .name .chat-status.online { color: #4ade80; }
         .chat-header .user-info .name .chat-status.typing { color: #f093fb; font-style: italic; animation: pulse 1s infinite; }
@@ -166,14 +200,15 @@
             border-radius: 30px;
             cursor: pointer;
             font-size: 14px;
-            transition: 0.2s;
+            transition: all 0.3s ease;
             display: flex;
             align-items: center;
             gap: 4px;
         }
         .chat-header .actions button:hover {
-            background: rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.15);
             color: #fff;
+            transform: scale(1.05);
         }
         .chat-header .actions .logout-btn {
             background: rgba(255,255,255,0.06);
@@ -186,7 +221,7 @@
             transition: 0.3s;
         }
         .chat-header .actions .logout-btn:hover {
-            background: rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.15);
             color: #fff;
         }
 
@@ -211,6 +246,7 @@
         #searchBox input:focus {
             border-color: #f5576c;
             background: rgba(255,255,255,0.08);
+            box-shadow: 0 0 0 3px rgba(245,87,108,0.15);
         }
         #searchBox button {
             padding: 8px 12px;
@@ -221,6 +257,11 @@
             font-weight: 600;
             cursor: pointer;
             font-size: 13px;
+            transition: 0.3s;
+        }
+        #searchBox button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(245,87,108,0.3);
         }
         #searchResults {
             max-height: 160px;
@@ -231,6 +272,7 @@
             padding: 8px;
             display: none;
             flex-shrink: 0;
+            animation: fadeSlide 0.3s ease;
         }
         #searchResults .result-item {
             display: flex;
@@ -241,6 +283,10 @@
             border-radius: 12px;
             margin-bottom: 6px;
             font-size: 13px;
+            transition: 0.2s;
+        }
+        #searchResults .result-item:hover {
+            background: rgba(255,255,255,0.1);
         }
 
         #chatList {
@@ -251,6 +297,7 @@
             border-radius: 16px;
             padding: 8px;
             min-height: 0;
+            scroll-behavior: smooth;
         }
         #chatList .chat-item {
             display: flex;
@@ -261,10 +308,12 @@
             border-radius: 12px;
             margin-bottom: 6px;
             cursor: pointer;
-            transition: 0.2s;
+            transition: all 0.3s ease;
+            animation: fadeSlide 0.3s ease;
         }
         #chatList .chat-item:hover {
-            background: rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.12);
+            transform: translateX(4px);
         }
         #chatList .chat-item .chat-avatar {
             width: 36px;
@@ -279,6 +328,7 @@
             flex-shrink: 0;
             background-size: cover;
             background-position: center;
+            transition: 0.3s;
         }
         #chatList .chat-item .chat-info {
             flex: 1;
@@ -312,6 +362,7 @@
             flex: 1;
             min-height: 0;
             overflow: hidden;
+            animation: fadeSlide 0.3s ease;
         }
         #activeChat .chat-header {
             flex-shrink: 0;
@@ -327,6 +378,11 @@
             font-size: 18px;
             cursor: pointer;
             padding: 2px 6px;
+            transition: 0.3s;
+        }
+        #activeChat .chat-header .back-btn:hover {
+            transform: scale(1.1);
+            color: #f5576c;
         }
         #activeChat .chat-header .chat-title {
             color: #fff;
@@ -350,10 +406,10 @@
             border-radius: 30px;
             cursor: pointer;
             font-size: 11px;
-            transition: 0.2s;
+            transition: 0.3s;
         }
         #activeChat .chat-header .chat-actions button:hover {
-            background: rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.15);
             color: #fff;
         }
 
@@ -368,12 +424,17 @@
             gap: 6px;
             margin-bottom: 8px;
             min-height: 0;
+            scroll-behavior: smooth;
         }
         #messagesContainer .msg {
             display: flex;
             align-items: flex-start;
             gap: 8px;
-            animation: fadeIn 0.2s ease;
+            animation: messageSlide 0.3s ease;
+        }
+        @keyframes messageSlide {
+            from { opacity: 0; transform: translateY(10px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
         }
         #messagesContainer .msg .avatar-msg {
             width: 28px;
@@ -398,6 +459,7 @@
             word-wrap: break-word;
             border-bottom-left-radius: 4px;
             font-size: 13px;
+            transition: 0.2s;
         }
         #messagesContainer .msg.me {
             flex-direction: row-reverse;
@@ -407,6 +469,7 @@
             color: #fff;
             border-bottom-left-radius: 14px;
             border-bottom-right-radius: 4px;
+            box-shadow: 0 4px 15px rgba(245,87,108,0.2);
         }
         #messagesContainer .msg .bubble .sender {
             font-weight: 600;
@@ -460,6 +523,7 @@
         .input-area input:focus {
             border-color: #f5576c;
             background: rgba(255,255,255,0.08);
+            box-shadow: 0 0 0 3px rgba(245,87,108,0.15);
         }
         .input-area input::placeholder {
             color: rgba(255,255,255,0.25);
@@ -477,10 +541,11 @@
             align-items: center;
             gap: 4px;
             font-family: 'Inter', sans-serif;
+            transition: 0.3s;
         }
         .input-area button:hover {
             transform: scale(1.05);
-            box-shadow: 0 8px 24px rgba(245,87,108,0.3);
+            box-shadow: 0 4px 15px rgba(245,87,108,0.3);
         }
         .input-area .file-btn {
             background: rgba(255,255,255,0.1);
@@ -545,6 +610,7 @@
             z-index: 1000;
             justify-content: center;
             align-items: center;
+            animation: fadeSlide 0.3s ease;
         }
         .modal-overlay.show { display: flex; }
         .modal {
@@ -555,6 +621,11 @@
             width: 90%;
             box-shadow: 0 20px 60px rgba(0,0,0,0.8);
             border: 1px solid rgba(255,255,255,0.06);
+            animation: scaleIn 0.3s ease;
+        }
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
         }
         .modal h2 {
             color: #fff;
@@ -569,6 +640,11 @@
             color: rgba(255,255,255,0.5);
             font-size: 24px;
             cursor: pointer;
+            transition: 0.3s;
+        }
+        .modal .modal-close:hover {
+            color: #fff;
+            transform: rotate(90deg);
         }
 
         .requests-tabs {
@@ -592,9 +668,10 @@
             background: linear-gradient(135deg, #f093fb, #f5576c);
             color: #fff;
             border-color: transparent;
+            box-shadow: 0 4px 15px rgba(245,87,108,0.2);
         }
         .requests-tabs button:hover {
-            background: rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.12);
             color: #fff;
         }
         .request-item {
@@ -606,6 +683,7 @@
             border-radius: 12px;
             margin-bottom: 8px;
             font-size: 13px;
+            animation: fadeSlide 0.3s ease;
         }
         .request-item .info { color: #fff; }
         .request-item .info .name { font-weight: 600; }
@@ -618,11 +696,14 @@
             cursor: pointer;
             font-size: 12px;
             font-weight: 500;
+            transition: 0.2s;
         }
         .request-item .actions .accept { background: #4ade80; color: #000; }
+        .request-item .actions .accept:hover { transform: scale(1.05); }
         .request-item .actions .reject { background: #f5576c; color: #fff; }
+        .request-item .actions .reject:hover { transform: scale(1.05); }
         .request-item .actions .cancel { background: rgba(255,255,255,0.1); color: #fff; }
-        .request-item .actions button:hover { transform: scale(1.05); }
+        .request-item .actions .cancel:hover { transform: scale(1.05); }
         .badge {
             background: #f5576c;
             color: #fff;
@@ -631,6 +712,11 @@
             font-size: 10px;
             font-weight: 700;
             margin-left: 4px;
+            animation: pop 0.3s ease;
+        }
+        @keyframes pop {
+            from { transform: scale(0); }
+            to { transform: scale(1); }
         }
 
         #callContainer {
@@ -640,17 +726,20 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: #0f0c29;
+            background: rgba(15,12,41,0.95);
+            backdrop-filter: blur(8px);
             z-index: 999;
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            animation: fadeSlide 0.3s ease;
         }
         #callContainer video {
             width: 100%;
             max-height: 80vh;
             background: #000;
             border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
         }
         #callContainer #localVideo {
             position: absolute;
@@ -660,8 +749,9 @@
             height: 140px;
             background: #333;
             border-radius: 10px;
-            border: 2px solid #fff;
+            border: 2px solid rgba(255,255,255,0.3);
             object-fit: cover;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.5);
         }
         #callContainer #hangupBtn {
             margin-top: 12px;
@@ -672,6 +762,11 @@
             color: #fff;
             font-size: 16px;
             cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 8px 30px rgba(245,87,108,0.4);
+        }
+        #callContainer #hangupBtn:hover {
+            transform: scale(1.05);
         }
 
         .profile-header .avatar-big {
@@ -690,6 +785,10 @@
             background-position: center;
             position: relative;
             cursor: pointer;
+            transition: 0.3s;
+        }
+        .profile-header .avatar-big:hover {
+            transform: scale(1.03);
         }
         .profile-header .avatar-big .avatar-upload-overlay {
             position: absolute;
@@ -714,6 +813,12 @@
             .btn { font-size: 14px; padding: 10px; }
             #messagesContainer .msg .bubble { font-size: 12px; max-width: 90%; }
         }
+
+        /* Убираем скроллбар для красоты */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
     </style>
 </head>
 <body>
@@ -822,7 +927,6 @@
                 <div class="avatar-small" id="chatAvatar">Z</div>
                 <div class="name" id="chatUserName">
                     <span id="chatDisplayName">Пользователь</span>
-                    <!-- Статус будет отображаться только в активном чате, здесь его нет -->
                 </div>
             </div>
             <div class="actions">
@@ -893,7 +997,7 @@
 
     <div id="callContainer">
         <video id="remoteVideo" autoplay playsinline style="width:100%; max-height:80vh; background:#000; border-radius:16px;"></video>
-        <video id="localVideo" autoplay playsinline muted style="position:absolute; bottom:20px; right:20px; width:100px; height:140px; background:#333; border-radius:10px; border:2px solid #fff; object-fit:cover;"></video>
+        <video id="localVideo" autoplay playsinline muted style="position:absolute; bottom:20px; right:20px; width:100px; height:140px; background:#333; border-radius:10px; border:2px solid rgba(255,255,255,0.3); object-fit:cover;"></video>
         <button id="hangupBtn" style="margin-top:12px; padding:10px 28px; background:#f5576c; border:none; border-radius:60px; color:#fff; font-size:16px; cursor:pointer;">Завершить</button>
     </div>
 
