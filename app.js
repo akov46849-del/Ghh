@@ -36,7 +36,6 @@ const authBox = document.getElementById('authBox');
 const profileBox = document.getElementById('profileBox');
 const chatBox = document.getElementById('chatBox');
 
-// Вход
 const loginUsername = document.getElementById('loginUsername');
 const loginPassword = document.getElementById('loginPassword');
 const loginBtn = document.getElementById('loginBtn');
@@ -44,7 +43,6 @@ const loginMessage = document.getElementById('loginMessage');
 const loginMessageText = document.getElementById('loginMessageText');
 const resetPasswordBtn = document.getElementById('resetPasswordBtn');
 
-// Регистрация
 const registerName = document.getElementById('registerName');
 const registerUsername = document.getElementById('registerUsername');
 const registerPassword = document.getElementById('registerPassword');
@@ -52,7 +50,6 @@ const registerBtn = document.getElementById('registerBtn');
 const registerMessage = document.getElementById('registerMessage');
 const registerMessageText = document.getElementById('registerMessageText');
 
-// Профиль
 const profileName = document.getElementById('profileName');
 const profileUsername = document.getElementById('profileUsername');
 const profileGender = document.getElementById('profileGender');
@@ -65,7 +62,6 @@ const closeProfileBtn = document.getElementById('closeProfileBtn');
 const profileMessage = document.getElementById('profileMessage');
 const profileMessageText = document.getElementById('profileMessageText');
 
-// Чат
 const chatAvatar = document.getElementById('chatAvatar');
 const chatUserName = document.getElementById('chatUserName');
 const chatStatus = document.getElementById('chatStatus');
@@ -94,14 +90,12 @@ const remoteVideo = document.getElementById('remoteVideo');
 const localVideo = document.getElementById('localVideo');
 const hangupBtn = document.getElementById('hangupBtn');
 
-// Заявки
 const requestsBtn = document.getElementById('requestsBtn');
 const requestsModal = document.getElementById('requestsModal');
 const requestsModalClose = document.getElementById('requestsModalClose');
 const requestsList = document.getElementById('requestsList');
 const requestsBadge = document.getElementById('requestsBadge');
 
-// Модалка смены пароля
 const passwordModal = document.getElementById('passwordModal');
 const passwordModalClose = document.getElementById('passwordModalClose');
 const oldPassword = document.getElementById('oldPassword');
@@ -180,8 +174,6 @@ registerBtn.addEventListener('click', () => {
         .then(() => {
             showRegisterMessage('✅ Регистрация успешна!', true);
             setTimeout(() => {
-                // Вход уже выполнен, поэтому сразу показываем чат
-                // Но нужно обновить currentUserProfile
                 const user = auth.currentUser;
                 if (user) {
                     currentUser = user;
@@ -225,7 +217,6 @@ loginBtn.addEventListener('click', () => {
     loginBtn.disabled = true;
     loginBtn.innerHTML = '<div class="spinner"></div>';
 
-    // Ищем uid по логину
     db.ref('usernames/' + username).once('value')
         .then(snapshot => {
             if (!snapshot.exists()) {
@@ -233,7 +224,6 @@ loginBtn.addEventListener('click', () => {
                 throw new Error('user_not_found');
             }
             const uid = snapshot.val();
-            // Получаем профиль, чтобы узнать email (который = username + '@zing.local')
             return db.ref('users/' + uid + '/username').once('value');
         })
         .then(snapshot => {
@@ -246,7 +236,6 @@ loginBtn.addEventListener('click', () => {
             return auth.signInWithEmailAndPassword(email, password);
         })
         .then(() => {
-            // Вход выполнен, обработка onAuthStateChanged подхватит
             showLoginMessage('✅ Вход выполнен!', true);
         })
         .catch(err => {
@@ -269,7 +258,7 @@ function showLoginMessage(text, success) {
 }
 
 // ============================================================
-// 4. СБРОС ПАРОЛЯ (через email)
+// 4. СБРОС ПАРОЛЯ
 // ============================================================
 resetPasswordBtn.addEventListener('click', () => {
     const username = loginUsername.value.trim().toLowerCase();
@@ -298,7 +287,6 @@ function loadUserProfile(uid) {
                 currentUserProfile = data;
                 showChat();
             } else {
-                // Если профиля нет – создаём (но при регистрации мы уже создали)
                 showChat();
             }
         })
@@ -424,7 +412,6 @@ changePasswordConfirmBtn.addEventListener('click', () => {
     changePasswordConfirmBtn.innerHTML = '<div class="spinner"></div>';
 
     const user = auth.currentUser;
-    // Для смены пароля нужно переаутентифицироваться
     const credential = firebase.auth.EmailAuthProvider.credential(user.email, old);
     user.reauthenticateWithCredential(credential)
         .then(() => user.updatePassword(newPwd))
@@ -1136,7 +1123,7 @@ function blockUser(uid) {
 }
 
 // ============================================================
-// 12. ЗВОНКИ (WebRTC) – базовая реализация
+// 12. ЗВОНКИ (WebRTC)
 // ============================================================
 let peerConnection = null;
 let localStream = null;
