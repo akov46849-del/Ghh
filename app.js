@@ -29,6 +29,13 @@ let typingListener = null;
 let typingTimeout = null;
 let friendRequestsListener = null;
 
+let peerConnection = null;
+let localStream = null;
+let currentCallId = null;
+let callInitiator = false;
+let isMicMuted = false;
+let isCamOff = false;
+
 // ============================================================
 // DOM-ЭЛЕМЕНТЫ
 // ============================================================
@@ -90,6 +97,10 @@ const callContainer = document.getElementById('callContainer');
 const remoteVideo = document.getElementById('remoteVideo');
 const localVideo = document.getElementById('localVideo');
 const hangupBtn = document.getElementById('hangupBtn');
+const toggleMicBtn = document.getElementById('toggleMicBtn');
+const toggleCamBtn = document.getElementById('toggleCamBtn');
+const audioInputSelect = document.getElementById('audioInputSelect');
+const audioOutputSelect = document.getElementById('audioOutputSelect');
 
 const requestsBtn = document.getElementById('requestsBtn');
 const requestsModal = document.getElementById('requestsModal');
@@ -105,6 +116,23 @@ const confirmPasswordInput = document.getElementById('confirmPassword');
 const changePasswordConfirmBtn = document.getElementById('changePasswordConfirmBtn');
 const passwordModalMessage = document.getElementById('passwordModalMessage');
 const passwordModalMessageText = document.getElementById('passwordModalMessageText');
+
+// ============================================================
+// ФУНКЦИЯ УСТАНОВКИ АВАТАРА (УНИВЕРСАЛЬНАЯ)
+// ============================================================
+function setAvatarElement(el, avatarUrl, name) {
+    if (!el) return;
+    if (avatarUrl && typeof avatarUrl === 'string' && avatarUrl.startsWith('http')) {
+        el.style.backgroundImage = `url(${avatarUrl})`;
+        el.style.backgroundSize = 'cover';
+        el.style.backgroundPosition = 'center';
+        el.textContent = '';
+    } else {
+        el.style.backgroundImage = 'none';
+        const initial = name && typeof name === 'string' ? name.charAt(0).toUpperCase() : '?';
+        el.textContent = initial;
+    }
+}
 
 // ============================================================
 // 1. ВКЛАДКИ АВТОРИЗАЦИИ
@@ -266,7 +294,7 @@ resetPasswordBtn.addEventListener('click', () => {
 });
 
 // ============================================================
-// 5. ПРОФИЛЬ
+// 5. ПРОФИЛЬ И АВАТАР
 // ============================================================
 function loadUserProfile(uid) {
     db.ref('users/' + uid).once('value')
@@ -292,13 +320,7 @@ function openProfile() {
         profileUsername.value = currentUserProfile.username || '';
         profileGender.value = currentUserProfile.gender || 'Секрет';
         profileBio.value = currentUserProfile.bio || '';
-        if (currentUserProfile.avatar) {
-            profileAvatar.style.backgroundImage = `url(${currentUserProfile.avatar})`;
-            profileAvatar.innerHTML = '';
-        } else {
-            profileAvatar.style.backgroundImage = '';
-            profileAvatar.innerHTML = currentUserProfile.displayName ? currentUserProfile.displayName.charAt(0).toUpperCase() : '👤';
-        }
+        setAvatarElement(profileAvatar, currentUserProfile.avatar, currentUserProfile.displayName);
     }
 }
 
@@ -347,8 +369,7 @@ profileAvatarInput.addEventListener('change', function() {
             db.ref('users/' + currentUser.uid + '/avatar').set(url)
                 .then(() => {
                     currentUserProfile.avatar = url;
-                    profileAvatar.style.backgroundImage = `url(${url})`;
-                    profileAvatar.innerHTML = '';
+                    setAvatarElement(profileAvatar, url, currentUserProfile.displayName);
                     updateChatHeader();
                     showProfileMessage('Аватар обновлён!', true);
                 })
@@ -449,7 +470,7 @@ deleteAccountBtn.addEventListener('click', () => {
 closeProfileBtn.addEventListener('click', closeProfile);
 
 // ============================================================
-// 8. ЧАТ
+// 8. ЧАТ (С ИСПРАВЛЕННЫМИ АВАТАРКАМИ)
 // ============================================================
 function showChat() {
     authBox.style.display = 'none';
@@ -466,15 +487,7 @@ function updateChatHeader() {
     if (currentUserProfile) {
         const name = currentUserProfile.displayName || 'Пользователь';
         chatDisplayName.textContent = name;
-        const avatar = currentUserProfile.avatar || name.charAt(0).toUpperCase();
-        if (avatar && avatar.startsWith('http')) {
-            chatAvatar.style.backgroundImage = `url(${avatar})`;
-            chatAvatar.style.backgroundSize = 'cover';
-            chatAvatar.textContent = '';
-        } else {
-            chatAvatar.style.backgroundImage = '';
-            chatAvatar.textContent = avatar;
-        }
+        setAvatarElement(chatAvatar, currentUserProfile.avatar, name);
         // Скрываем статус (он только в активном чате)
         const statusEl = chatUserName.querySelector('.chat-status');
         if (statusEl) statusEl.style.display = 'none';
@@ -591,15 +604,18 @@ function loadChatList() {
                 if (!partner) return;
                 const div = document.createElement('div');
                 div.className = 'chat-item';
-                const avatarLetter = (partner.avatar && partner.avatar.startsWith('http')) ? '' : (partner.displayName ? partner.displayName.charAt(0).toUpperCase() : '?');
+                const avatarLetter = partner.avatar || partner.displayName || '?';
+                const avatarEl = div.querySelector('.chat-avatar');
                 div.innerHTML = `
-                    <div class="chat-avatar" style="${partner.avatar && partner.avatar.startsWith('http') ? `background-image:url(${partner.avatar}); background-size:cover;` : ''}">${avatarLetter}</div>
+                    <div class="chat-avatar"></div>
                     <div class="chat-info">
                         <div class="chat-name">${partner.displayName || 'Пользователь'}</div>
                         <div class="chat-last">${chat.lastMessage || 'Напишите первым'}</div>
                     </div>
                     <div class="chat-time">${chat.lastTimestamp ? new Date(chat.lastTimestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : ''}</div>
                 `;
+                const av = div.querySelector('.chat-avatar');
+                setAvatarElement(av, partner.avatar, partner.displayName);
                 div.addEventListener('click', () => {
                     openChat(chatId, partnerUid, partner);
                 });
@@ -659,21 +675,19 @@ function loadMessages(chatId) {
         const msgEl = document.createElement('div');
         msgEl.className = 'msg';
         if (data.from === currentUser.uid) msgEl.classList.add('me');
+
         const avatarDiv = document.createElement('div');
         avatarDiv.className = 'avatar-msg';
+        const senderName = data.senderName || 'Unknown';
         db.ref('users/' + data.from).once('value').then(snap => {
             const sender = snap.val();
             if (sender) {
-                const letter = (sender.avatar && sender.avatar.startsWith('http')) ? '' : (sender.displayName ? sender.displayName.charAt(0).toUpperCase() : '?');
-                if (sender.avatar && sender.avatar.startsWith('http')) {
-                    avatarDiv.style.backgroundImage = `url(${sender.avatar})`;
-                    avatarDiv.style.backgroundSize = 'cover';
-                    avatarDiv.textContent = '';
-                } else {
-                    avatarDiv.textContent = letter;
-                }
+                setAvatarElement(avatarDiv, sender.avatar, sender.displayName || senderName);
+            } else {
+                avatarDiv.textContent = senderName.charAt(0).toUpperCase();
             }
         });
+
         const bubble = document.createElement('div');
         bubble.className = 'bubble';
         const senderSpan = document.createElement('div');
@@ -685,9 +699,9 @@ function loadMessages(chatId) {
             const img = document.createElement('img');
             img.src = data.text;
             img.className = 'image-msg';
-            img.style.maxWidth = '200px';
-            img.style.borderRadius = '12px';
-            img.style.marginTop = '4px';
+            img.style.maxWidth = '160px';
+            img.style.borderRadius = '10px';
+            img.style.marginTop = '2px';
             textSpan.appendChild(img);
         } else {
             textSpan.textContent = data.text || '';
@@ -802,7 +816,6 @@ backToChatList.addEventListener('click', () => {
         statusListener = null;
     }
     activeChatStatus.textContent = '';
-    // Принудительно обновляем список чатов
     loadChatList();
 });
 
@@ -1120,13 +1133,8 @@ function blockUser(uid) {
 }
 
 // ============================================================
-// 12. ЗВОНКИ (WebRTC)
+// 12. ЗВОНКИ (WebRTC) С УПРАВЛЕНИЕМ
 // ============================================================
-let peerConnection = null;
-let localStream = null;
-let currentCallId = null;
-let callInitiator = false;
-
 async function startCall(partnerUid, partnerName) {
     if (!currentUser) return;
     if (peerConnection) {
@@ -1168,6 +1176,13 @@ async function createPeerConnection(partnerUid, callId) {
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
     localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
     localVideo.srcObject = localStream;
+    isMicMuted = false;
+    isCamOff = false;
+    updateMicButton();
+    updateCamButton();
+    // Заполняем списки устройств
+    populateDevices();
+
     peerConnection.ontrack = event => {
         remoteVideo.srcObject = event.streams[0];
     };
@@ -1211,6 +1226,111 @@ async function createPeerConnection(partnerUid, callId) {
             await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
         }
     });
+
+    // Вешаем обработчики кнопок управления
+    toggleMicBtn.onclick = toggleMicrophone;
+    toggleCamBtn.onclick = toggleCamera;
+    hangupBtn.onclick = endCall;
+}
+
+function toggleMicrophone() {
+    if (!localStream) return;
+    const audioTrack = localStream.getAudioTracks()[0];
+    if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        isMicMuted = !audioTrack.enabled;
+        updateMicButton();
+    }
+}
+
+function toggleCamera() {
+    if (!localStream) return;
+    const videoTrack = localStream.getVideoTracks()[0];
+    if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled;
+        isCamOff = !videoTrack.enabled;
+        updateCamButton();
+    }
+}
+
+function updateMicButton() {
+    if (toggleMicBtn) {
+        toggleMicBtn.innerHTML = isMicMuted ? '<i class="fas fa-microphone-slash"></i>' : '<i class="fas fa-microphone"></i>';
+        toggleMicBtn.style.background = isMicMuted ? 'rgba(255,0,0,0.3)' : '';
+    }
+}
+
+function updateCamButton() {
+    if (toggleCamBtn) {
+        toggleCamBtn.innerHTML = isCamOff ? '<i class="fas fa-video-slash"></i>' : '<i class="fas fa-video"></i>';
+        toggleCamBtn.style.background = isCamOff ? 'rgba(255,0,0,0.3)' : '';
+    }
+}
+
+async function switchAudioInput(deviceId) {
+    if (!currentUser || !localStream) return;
+    try {
+        const newStream = await navigator.mediaDevices.getUserMedia({
+            audio: { deviceId: deviceId ? { exact: deviceId } : undefined },
+            video: false
+        });
+        const oldAudioTrack = localStream.getAudioTracks()[0];
+        const newAudioTrack = newStream.getAudioTracks()[0];
+        if (oldAudioTrack) {
+            localStream.removeTrack(oldAudioTrack);
+            oldAudioTrack.stop();
+        }
+        localStream.addTrack(newAudioTrack);
+        const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'audio');
+        if (sender) {
+            await sender.replaceTrack(newAudioTrack);
+        }
+        if (isMicMuted) newAudioTrack.enabled = false;
+        newStream.getTracks().forEach(t => { if (t.kind !== 'audio') t.stop(); });
+    } catch (e) {
+        console.error('Ошибка смены микрофона:', e);
+    }
+}
+
+async function switchAudioOutput(deviceId) {
+    if (remoteVideo && remoteVideo.setSinkId) {
+        try {
+            await remoteVideo.setSinkId(deviceId);
+        } catch (e) {
+            console.error('Ошибка смены динамика:', e);
+        }
+    }
+}
+
+async function populateDevices() {
+    try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const audioInputs = devices.filter(d => d.kind === 'audioinput');
+        const audioOutputs = devices.filter(d => d.kind === 'audiooutput');
+
+        if (audioInputSelect) {
+            audioInputSelect.innerHTML = '';
+            audioInputs.forEach(dev => {
+                const option = document.createElement('option');
+                option.value = dev.deviceId;
+                option.text = dev.label || `Микрофон ${dev.deviceId.slice(0,5)}`;
+                audioInputSelect.appendChild(option);
+            });
+            audioInputSelect.onchange = (e) => switchAudioInput(e.target.value);
+        }
+        if (audioOutputSelect) {
+            audioOutputSelect.innerHTML = '';
+            audioOutputs.forEach(dev => {
+                const option = document.createElement('option');
+                option.value = dev.deviceId;
+                option.text = dev.label || `Динамик ${dev.deviceId.slice(0,5)}`;
+                audioOutputSelect.appendChild(option);
+            });
+            audioOutputSelect.onchange = (e) => switchAudioOutput(e.target.value);
+        }
+    } catch (e) {
+        console.warn('Не удалось получить список устройств:', e);
+    }
 }
 
 async function answerCall(callId, callerUid) {
@@ -1245,6 +1365,11 @@ function endCall() {
         currentCallId = null;
     }
     callInitiator = false;
+    isMicMuted = false;
+    isCamOff = false;
+    // Сброс кнопок
+    if (toggleMicBtn) toggleMicBtn.style.background = '';
+    if (toggleCamBtn) toggleCamBtn.style.background = '';
 }
 
 function showCallUI() {
@@ -1252,8 +1377,7 @@ function showCallUI() {
     incomingCallModal.classList.remove('show');
 }
 
-hangupBtn.addEventListener('click', endCall);
-
+// Слушаем входящие звонки
 auth.onAuthStateChanged(user => {
     if (user) {
         const callsRef = db.ref('calls');
