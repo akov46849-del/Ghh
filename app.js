@@ -64,7 +64,7 @@ const profileMessageText = document.getElementById('profileMessageText');
 
 const chatAvatar = document.getElementById('chatAvatar');
 const chatDisplayName = document.getElementById('chatDisplayName');
-const chatUserName = document.getElementById('chatUserName'); // контейнер для имени и статуса
+const chatUserName = document.getElementById('chatUserName');
 const logoutBtn = document.getElementById('logoutBtn');
 const settingsBtn = document.getElementById('settingsBtn');
 const searchInput = document.getElementById('searchInput');
@@ -455,7 +455,7 @@ function showChat() {
     authBox.style.display = 'none';
     profileBox.style.display = 'none';
     chatBox.style.display = 'flex';
-    updateChatHeader(); // показываем только своё имя без статуса
+    updateChatHeader();
     loadChatList();
     updateRequestsBadge();
     listenForFriendRequests();
@@ -475,7 +475,7 @@ function updateChatHeader() {
             chatAvatar.style.backgroundImage = '';
             chatAvatar.textContent = avatar;
         }
-        // Скрываем статус (он будет только в активном чате)
+        // Скрываем статус (он только в активном чате)
         const statusEl = chatUserName.querySelector('.chat-status');
         if (statusEl) statusEl.style.display = 'none';
     }
@@ -542,7 +542,6 @@ function listenTyping(chatId) {
             activeChatStatus.textContent = 'печатает...';
             activeChatStatus.className = 'chat-status typing';
         } else {
-            // Восстанавливаем статус (онлайн/офлайн)
             if (currentChatPartnerUid) {
                 listenPartnerStatus(currentChatPartnerUid);
             }
@@ -629,9 +628,7 @@ function openChat(chatId, partnerUid, partnerData) {
     callBtn.style.display = 'inline-block';
     callBtn.onclick = () => startCall(partnerUid, partnerData.displayName);
 
-    // Слушаем статус собеседника
     listenPartnerStatus(partnerUid);
-    // Слушаем печатание
     listenTyping(chatId);
 
     loadMessages(chatId);
@@ -800,9 +797,12 @@ backToChatList.addEventListener('click', () => {
     currentChatPartnerUid = null;
     callBtn.style.display = 'none';
     if (typingListener) typingListener.off();
-    if (statusListener) statusListener.off();
-    // Сбрасываем статус в активном чате
+    if (statusListener) {
+        statusListener.off();
+        statusListener = null;
+    }
     activeChatStatus.textContent = '';
+    // Принудительно обновляем список чатов
     loadChatList();
 });
 
